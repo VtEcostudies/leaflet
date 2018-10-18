@@ -1,0 +1,10 @@
+# Empty CSS file for your own CSS
+.vceCenter{
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 90%;
+}
+.vceOutline {
+    outline: 1px black solid;
+}
