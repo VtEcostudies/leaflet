@@ -1,0 +1,16 @@
+.background-landscape {
+  background-image: url("http://val.vtecostudies.org/wp-content/uploads/2015/10/mountain-sunrise_312x205_acf_cropped.jpg");
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+.background-gannet {
+  background-image: url("http://val.vtecostudies.org/wp-content/uploads/2015/03/gannet-large.png");
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+.vceOutline {
+    outline: 1px black solid;
+}
+.vceHeader {
+    padding-top:10px;
+}

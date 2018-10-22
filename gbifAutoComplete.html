@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>
+        Demo auto complete
+    </title>
+    <script type="module" src="js/gbifAutoComplete.js"></script>
+</head>
+<body>
+    <!-- NOTE: autocomplete="off" gets rid of historical entries not in the api return set -->
+    <input type="text" autocomplete="off" id="gbif_autocomplete_name"  style="width:300px" list="gbif_autocomplete_list">
+    <datalist id="gbif_autocomplete_list"></datalist>
+    <input type="button" id="getTaxonKey" value="Get Taxon Key"></input>
+    <label id="load_status"></label>    
+    <br/>
+    <label id="api_query">api query:</label>
+    <br/>
+    <label id="event_key">event key:</label>
+    <br/>
+    <textarea id="visi_list" rows="30" cols="50"></textarea>
+</body>
+</html>

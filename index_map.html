@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>VCE Example: Leaflet with iNat Occ API data and BISON WMS Raster Overlay</title>
+
+    <meta name="description" content="VCE Example: Leaflet with BISON WMS Occurrence Data Raster Overlay">
+    <meta name="author" content="Vermont Center for Ecostudies">
+
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    
+    <link rel="SHORTCUT ICON" href="https://vtecostudies.org/wp-content/themes/vtecostudies/favicon.ico"/>
+
+    <!-- Leaflet's CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.4/dist/leaflet.css"
+       integrity="sha512-puBpdR0798OZvTTbP4A8Ix/l+A4dHDD0DGqYW6RQ+9jxkRFclaxxQb/SJAWZfWAkuyeQUytO7+7N4QKrDh+drA=="
+       crossorigin=""/>
+    
+    <!-- Make sure you put this AFTER Leaflet's CSS -->
+    <script src="https://unpkg.com/leaflet@1.3.4/dist/leaflet.js"
+      integrity="sha512-nMMmRyTVoLYqjP9hrbed9S+FzjZHW5gY1TWCHA5ckwXZBadntCNs8kEqAWdrb9O7rxbCaA4lKTIWjDXZxflOcA=="
+      crossorigin=""></script>
+    
+    <script src="https://unpkg.com/leaflet.vectorgrid@latest/dist/Leaflet.VectorGrid.js"></script>
+    
+    <script type="module" src="js/webmap.js"></script>
+
+  </head>
+  <body>
+  <form name=getBisonLeaflet action="javascript:getData()">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-1"></div>
+            <div class="col-md-10">
+                    <h5 class="vceCenter"><u>VCE Example: Leaflet with iNat Occ API data and BISON WMS Raster Overlay</u></h5>
+                    <!--
+                    <h5 class="vceCenter"><u>VCE Example: Leaflet with BISON WMS Occurrence Data Raster Overlay</u></h5>
+                    -->
+            </div>
+            <div class="col-md-1"></div>
+        </div>
+        <div class="row">
+            <div class="col-md-1"></div>
+            <div class="col-md-2">
+                <a href="https://vtecostudies.org"><img src="/img/vce_logo_medium.png"/></a>
+            </div>
+            <div class="col-md-1">
+                <label id=zoomLabel class="small vceOutline"></label>
+            </div>
+            <div class="col-md-7">
+                <div class="row">
+                    <label>Species Name: (</label>
+                    <input type="radio" id="sciName" name="nameType" value="scientific_name"/><label for="sciName">Scientific</label>
+                    <input type="radio" id="comName" name="nameType" value="common_name" checked><label for="comName">Common</label>
+                    )
+                    <input type="text" id="speciesName" size=40 value="Bicknell's thrush"/>
+                    <input type="submit" id="speciesSubmit" value="Get Data"/>
+                </div>
+                <div class="row">
+                    <label id=jsonResults class="small vceOutline"></label>
+                </div>
+            </div>
+            <div class="col-md-1"></div>
+        </div>
+        <div class="row">
+            <div class="col-md-1"></div>
+            <div class="col-md-10">
+                <div id="mapid" style="width: 100%; height: 700px;" class="center"></div>
+            </div>
+            <div class="col-md-1"></div>
+        </div>
+        <div class="row">
+            <div class="col-md-1"></div>
+            <div class="col-md-10">
+                <label id=apiUrlLabel class="small vceOutline"></label>
+            </div>
+            <div class="col-md-1"></div>
+        </div>
+        </div>
+    </div>
+  </form>
+
+    <script src="js/jquery.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+
+  </body>
+</html>
