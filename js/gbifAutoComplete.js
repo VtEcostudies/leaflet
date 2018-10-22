@@ -117,6 +117,7 @@ function getSelectedItemData(dataItem) {
 
     // If we find the input inside our list, get the taxonKey, else return null
     for (var element of auto_list.children) {
+        //if (element.value.toLowerCase == auto_name.value.toLowerCase) {
         if (element.value == auto_name.value) {
             data = element.getAttribute(dataItem);
         }
