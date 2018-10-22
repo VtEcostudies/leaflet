@@ -49,7 +49,7 @@ function addBisonWmsOverlay() {
     var hyt = `&HEIGHT=${mapExt.pixhyt}`;
     var bisonUrl = baseUrl + layers + nameType + name + format + bbox + wid + hyt;
 
-    document.getElementById("wmsUrlLabel").innerHTML = (bisonUrl);
+    document.getElementById("apiUrlLabel").innerHTML = (bisonUrl);
 
     if (myMap.hasLayer(imgOverlay)) {
         myMap.removeLayer(imgOverlay);

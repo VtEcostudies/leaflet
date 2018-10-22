@@ -40,7 +40,7 @@ function addInatOccCanvas() {
     var bbox = `&nelat=${mapExt.nelat}&nelng=${mapExt.nelng}&swlat=${mapExt.swlat}&swlng=${mapExt.swlng}`;
     var order = '&order=desc&order_by=created_at';
     var iNatUrl = baseUrl + identified + taxon_name + bbox + order;
-    document.getElementById("wmsUrlLabel").innerHTML = (iNatUrl);
+    document.getElementById("apiUrlLabel").innerHTML = (iNatUrl);
 
     if (cmColor.select < 2) {cmColor.select++;} else {cmColor.select=0;}
     
@@ -72,7 +72,7 @@ function loadPage(url, page, callback) {
 }
 
 function ajaxResults(xhttp, url, pageNext) {
-    document.getElementById("wmsUrlLabel").innerHTML = (url+`&page=${pageNext}`);
+    document.getElementById("apiUrlLabel").innerHTML = (url+`&page=${pageNext}`);
     var totr = xhttp.response.total_results;
     var page = xhttp.response.page;
     var perp = xhttp.response.per_page;

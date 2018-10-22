@@ -1,10 +1,11 @@
 /*
-jtl 10/15/2018
+jtl 10/22/2018
 Leaflet experiment.
 Goals:
 - load a json array from GBIF and populate the map with point occurrence data
 */
-var llCenter = [43.6962, -72.3197];
+var vceCenter = [43.6962, -72.3197]; //VCE coordinates
+var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
 var cmLayer = []; //an array of circleMarker 'layers' to keep track of for removal and deletion
 var cmIndex = 0; //a global counter for cmLayer array-objects
 var cmColor = {select:0, options:[{index:0, color:"blue", radius:10}, {index:1, color:"red", radius:7}, {index:2, color:"green", radius:3}]};
@@ -13,8 +14,8 @@ var myRenderer = L.canvas({ padding: 0.5 }); //make global so we can clear the c
 
 function addMap() {
     var myMap = L.map('mapid', {
-            center: llCenter,
-            zoom: 12,
+            center: vtCenter,
+            zoom: 8,
             crs: L.CRS.EPSG3857 //have to do this to conform to USGS maps
         });
 
@@ -28,19 +29,19 @@ function addMap() {
 }
 
 /*
- * query iNat node.js API for json array of occurrence data
+ * query GBIF occurrence API for json array of occurrence data
  *
  * add array of circleMarkers to canvas renderer...
 */
-function addInatOccCanvas() {
+function addGbifOccCanvas() {
     var mapExt = getMapLlExtents();
     var baseUrl = 'http://api.inaturalist.org/v1/observations';
     var identified = '?identified=true';
     var taxon_name = '&taxon_name=' + document.getElementById("speciesName").value;
     var bbox = `&nelat=${mapExt.nelat}&nelng=${mapExt.nelng}&swlat=${mapExt.swlat}&swlng=${mapExt.swlng}`;
     var order = '&order=desc&order_by=created_at';
-    var iNatUrl = baseUrl + identified + taxon_name + bbox + order;
-    document.getElementById("wmsUrlLabel").innerHTML = (iNatUrl);
+    var gbifUrl = baseUrl + identified + taxon_name + bbox + order;
+    document.getElementById("apiUrlLabel").innerHTML = (gbifUrl);
 
     if (cmColor.select < 2) {cmColor.select++;} else {cmColor.select=0;}
     
@@ -55,7 +56,7 @@ function addInatOccCanvas() {
     });
 
     //load the first 'page' of data, which initiates subsequent page loads
-    loadPage(iNatUrl, 1, ajaxResults);
+    loadPage(gbifUrl, 1, ajaxResults);
 }
 
 function loadPage(url, page, callback) {
@@ -72,7 +73,7 @@ function loadPage(url, page, callback) {
 }
 
 function ajaxResults(xhttp, url, pageNext) {
-    document.getElementById("wmsUrlLabel").innerHTML = (url+`&page=${pageNext}`);
+    document.getElementById("apiUrlLabel").innerHTML = (url+`&page=${pageNext}`);
     var totr = xhttp.response.total_results;
     var page = xhttp.response.page;
     var perp = xhttp.response.per_page;
@@ -86,21 +87,21 @@ function ajaxResults(xhttp, url, pageNext) {
     }
 }
 
-function updateMap(iNatJsonData) {
+function updateMap(gbifJsonData) {
 
-for (var i = 0; i < iNatJsonData.length; i += 1) {
-    var llLoc = L.latLng(iNatJsonData[i].geojson.coordinates[1], iNatJsonData[i].geojson.coordinates[0]);
+for (var i = 0; i < gbifJsonData.length; i += 1) {
+    var llLoc = L.latLng(gbifJsonData[i].geojson.coordinates[1], gbifJsonData[i].geojson.coordinates[0]);
 	cmLayer[cmIndex++] = L.circleMarker(llLoc, {
         renderer: myRenderer,
         radius: 3, //cmColor.options[cmColor.select].radius,
         color: "red" //cmColor.options[cmColor.select].color
       }).addTo(myMap).bindPopup(`
-            Taxon Name: ${iNatJsonData[i].taxon.name||''}<br>
-            Taxon Rank: ${iNatJsonData[i].taxon.rank||''}<br>
-            ${iNatJsonData[i].description||''}<br>
-            <a href="${iNatJsonData[i].uri||''}">${iNatJsonData[i].uri||''}</a><br>
-            ${iNatJsonData[i].observed_on_string||''}<br>
-            Quality/Grade: ${iNatJsonData[i].quality_grade||''}<br>
+            Taxon Name: ${gbifJsonData[i].taxon.name||''}<br>
+            Taxon Rank: ${gbifJsonData[i].taxon.rank||''}<br>
+            ${gbifJsonData[i].description||''}<br>
+            <a href="${gbifJsonData[i].uri||''}">${gbifJsonData[i].uri||''}</a><br>
+            ${gbifJsonData[i].observed_on_string||''}<br>
+            Quality/Grade: ${gbifJsonData[i].quality_grade||''}<br>
             `);
 }
     
@@ -126,25 +127,25 @@ function addMarker() {
 
 function addEventCallbacks() {
 myMap.on('load', function () {
-    addInatOccCanvas();
+    addGbifOccCanvas();
 });
 myMap.on('zoomend', function () {
-    addInatOccCanvas();
+    addGbifOccCanvas();
 });
 myMap.on('moveend', function () {
-    addInatOccCanvas();
+    addGbifOccCanvas();
 });
 }
 
 //standalone module usage
-export function addMapGetInatOcc() {
+export function addMapGetGbifOcc() {
     addMap();
     addMarker();
-    addInatOccCanvas();
+    addGbifOccCanvas();
     addEventCallbacks();
 }
 //integrated module usage
-export function getInatOccCanvas(map) {
+export function getGbifOccCanvas(map) {
     myMap = map;
-    addInatOccCanvas();
+    addGbifOccCanvas();
 }

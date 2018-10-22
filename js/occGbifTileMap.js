@@ -8,14 +8,15 @@ Goals:
 
 
 //USGS BISON wms coordinate system is only EPSG:3857
-var llCenter = [43.6962, -72.3197];
+var llCenter = [43.6962, -72.3197]; //VCE coordinates
+var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
 var gbifTileLayer = {};
 var myMap = {};
 
 function addMap() {
     myMap = L.map('mapid', {
-            center: llCenter,
-            zoom: 12,
+            center: vtCenter,
+            zoom: 8,
             crs: L.CRS.EPSG3857
         });
     
@@ -31,7 +32,7 @@ function addMap() {
  Since the USGS coordinate system is only EPSG:3857 (Web Mercator), for all maps we
  use this projection.
 */
-function addGbifRasterTileLayer() {
+function addGbifRasterTileLayer(taxonKey) {
     var baseUrl = 'https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}';
     var format = '@Hx.png'; //@Hx.png, @1x.png, @2x.png, @3x.png, @4x.png
     var srs = '?srs=EPSG:3857'; //Spatial reference system. One of:
@@ -42,12 +43,20 @@ function addGbifRasterTileLayer() {
             EPSG:3031 (Antarctic stereographic)
             */
     var style = ''; //'&style=purpleYellow.point'; //'&style=iNaturalist.poly';
-    var taxon = '&taxonKey=2487805'; //Poecile atricapillus (black-capped chickadee)
+    var taxon = `&taxonKey=${taxonKey}`; //2487805 Poecile atricapillus (black-capped chickadee)
     var country = ''; //'&country=USA';
     var gbifUrl = baseUrl + format + srs + style + taxon + country;
 
-    document.getElementById("wmsUrlLabel").innerHTML = (gbifUrl);
+    document.getElementById("apiUrlLabel").innerHTML = (gbifUrl);
+    
+    //clear the map
+    if (Object.keys(gbifTileLayer).length > 0) {
+        if (myMap.hasLayer(gbifTileLayer)) {
+            gbifTileLayer.remove();
+        }
+    }
 
+    //load the map
     gbifTileLayer = L.tileLayer(gbifUrl).addTo(myMap);
 }
 
@@ -55,7 +64,7 @@ function addGbifRasterTileLayer() {
  * API documentation: https://leaflet.github.io/Leaflet.VectorGrid/vectorgrid-api-docs.html
  * Github: https://github.com/Leaflet/Leaflet.VectorGrid
  */
-function addGbifVectorTileLayer() {
+function addGbifVectorTileLayer(taxonKey) {
     var baseUrl = 'https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}';
     var format = '.mvt';
     var srs = '?srs=EPSG:3857'; //Spatial reference system. One of:
@@ -65,13 +74,21 @@ function addGbifVectorTileLayer() {
             EPSG:3575 (Arctic LAEA)
             EPSG:3031 (Antarctic stereographic)
             */
-    var taxon = '&taxonKey=2487805'; //Poecile atricapillus (black-capped chickadee)
+    var taxon = `&taxonKey=${taxonKey}`; //taxonKey = 2487805 = Poecile atricapillus (black-capped chickadee)
     var country = ''; //'&country=USA';
     var gbifUrl = baseUrl + format + srs + taxon + country;
 
-    document.getElementById("wmsUrlLabel").innerHTML = (gbifUrl);
+    document.getElementById("apiUrlLabel").innerHTML = (gbifUrl);
+    
+    //clear the map
+    if (Object.keys(gbifTileLayer).length > 0) {
+        if (myMap.hasLayer(gbifTileLayer)) {
+            gbifTileLayer.remove();
+        }
+    }
 
-    L.vectorGrid.protobuf(gbifUrl, {
+    //load the map
+    gbifTileLayer = L.vectorGrid.protobuf(gbifUrl, {
         vectorTileLayerStyles: {
             /*
              * The only layer for GBIF .mvt vector tiles is 'occurrence'.
@@ -103,8 +120,6 @@ function addGbifVectorTileLayer() {
             }
         }
     }).addTo(myMap);
-
-    //L.vectorGrid.protobuf(gbifUrl).addTo(myMap);
 }
 
 function addMarker() {
@@ -120,8 +135,8 @@ export function addMapAddGbifTile() {
     addGbifVectorTileLayer();
 }
 //integrated use
-export function getGbifTile(map) {
+export function getGbifTile(map, taxonKey) {
     myMap = map;
-    //addGbifRasterTileLayer();
-    addGbifVectorTileLayer();
+    //addGbifRasterTileLayer(taxonKey);
+    addGbifVectorTileLayer(taxonKey);
 }
