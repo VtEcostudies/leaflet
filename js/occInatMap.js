@@ -1,20 +1,22 @@
 /*
-jtl 10/15/2018
+jtl 10/23/2018
 Leaflet experiment.
 Goals:
-- load a json array from iNaturalist and populate the map with point occurrence data
+- load a json array from VAL Data Portal Ocurrence API and populate the map with point occurrence data
 */
-var llCenter = [43.6962, -72.3197];
+var vceCenter = [43.6962, -72.3197]; //VCE coordinates
+var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
 var cmLayer = []; //an array of circleMarker 'layers' to keep track of for removal and deletion
 var cmIndex = 0; //a global counter for cmLayer array-objects
 var cmColor = {select:0, options:[{index:0, color:"blue", radius:10}, {index:1, color:"red", radius:7}, {index:2, color:"green", radius:3}]};
 var myMap = {};
 var myRenderer = L.canvas({ padding: 0.5 }); //make global so we can clear the canvas before updates...
 
+//for standalone use
 function addMap() {
     var myMap = L.map('mapid', {
-            center: llCenter,
-            zoom: 12,
+            center: vtCenter,
+            zoom: 8,
             crs: L.CRS.EPSG3857 //have to do this to conform to USGS maps
         });
 
@@ -28,7 +30,7 @@ function addMap() {
 }
 
 /*
- * query iNat node.js API for json array of occurrence data
+ * query VAL Occ API for json array of occurrence data
  *
  * add array of circleMarkers to canvas renderer...
 */

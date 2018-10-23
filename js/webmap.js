@@ -13,6 +13,7 @@ import {getInatOccCanvas} from "./occInatMap.js";
 import {getBisonWmsOverlay} from "./wmsBisonMap.js";
 import {getGbifTile} from "./occGbifTileMap.js";
 import {getTaxonKey} from "./gbifAutoComplete.js";
+import {getValOccCanvas} from "./occValMap.js";
 
 //USGS BISON wms coordinate system is only EPSG:3857
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
@@ -20,7 +21,8 @@ var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
 var myMap = {};
 var wmsBison = false; //flag to show a Bison WMS overlay map
 var occInat = false; //flag to show an iNat JSON Occurrence vector map
-var occGbifTile = true;
+var occGbifTile = false; //flag to add a GBIF vectorgrid tile layer
+var occVal = true; //flag to add a VAL Data Portal map of occurrence vector data
 
 function addMap() {
     myMap = L.map('mapid', {
@@ -47,6 +49,7 @@ function getData() {
     if (wmsBison) {getBisonWmsOverlay(myMap);}
     if (occInat) {getInatOccCanvas(myMap);}
     if (occGbifTile) {getGbifTile(myMap, getTaxonKey());}  //NOTE: this gets a vector tile map, which scales/moves automagically.  event callback updates not needed.
+    if (occVal) {getValOccCanvas(myMap);}
 }
 
 addMap();
@@ -55,14 +58,17 @@ addMarker();
 myMap.on('load', function () {
     if (wmsBison) {getBisonWmsOverlay(myMap);}
     if (occInat) {getInatOccCanvas(myMap);}
+    //if (occVal) {getValOccCanvas(myMap);}
 });
 myMap.on('zoomend', function () {
     if (wmsBison) {getBisonWmsOverlay(myMap);}
     if (occInat) {getInatOccCanvas(myMap);}
+    //if (occVal) {getValOccCanvas(myMap);}
 });
 myMap.on('moveend', function () {
     if (wmsBison) {getBisonWmsOverlay(myMap);}
     if (occInat) {getInatOccCanvas(myMap);}
+    //if (occVal) {getValOccCanvas(myMap);}
 });
 
 //getData(); //now we have a species lookup.  start with blank map.
