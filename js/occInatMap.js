@@ -2,9 +2,8 @@
 jtl 10/23/2018
 Leaflet experiment.
 Goals:
-- load a json array from VAL Data Portal Ocurrence API and populate the map with point occurrence data
+- load a json array from iNat Ocurrence API and populate the map with point occurrence data
 */
-var vceCenter = [43.6962, -72.3197]; //VCE coordinates
 var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
 var cmLayer = []; //an array of circleMarker 'layers' to keep track of for removal and deletion
 var cmIndex = 0; //a global counter for cmLayer array-objects

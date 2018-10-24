@@ -5,12 +5,21 @@ Goals:
 - load a json array from VAL Data Portal Ocurrence API and populate the map with point occurrence data
 */
 import {getCanonicalName, getScientificName, getAllData} from "./gbifAutoComplete.js";
+import {speciesList} from "./map_these_species.js";
 
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
 var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
 var cmLayer = []; //an array of circleMarker 'layers' to keep track of for removal and deletion
 var cmIndex = 0; //a global counter for cmLayer array-objects
-var cmColor = {select:0, options:[{index:0, color:"blue", radius:10}, {index:1, color:"red", radius:7}, {index:2, color:"green", radius:3}]};
+var cmCount = 0; //a global counter for cmLayer array-objects across mutiple species
+var cmColor = {select:0, options:[
+                    {index:0, color:"blue", radius:3},
+                    {index:1, color:"red", radius:3},
+                    {index:2, color:"green", radius:3},
+                    {index:2, color:"yellow", radius:3},
+                    {index:2, color:"purple", radius:3}
+                ]
+            };
 var myMap = {};
 var myRenderer = L.canvas({ padding: 0.5 }); //make global so we can clear the canvas before updates...
 var xhrRecsPerPage = 500; //the number of records to load per ajax request.  more is faster.
@@ -35,13 +44,34 @@ function addMap() {
 }
 
 /*
+ * Clear any markers from the map
+ */
+function initValOccCanvas() {
+    console.log(`initValOccCanvas()`);
+    cmCount = 0;
+    //remove all circleMarkers
+    cmLayer.forEach(function(cm, index) {
+        cm.remove(); //remove the marker from the map
+        delete cmLayer[index]; //delete it from our index of markers
+        cmIndex--;
+        if (cmLayer.length < 1) {
+            cmIndex = 0;
+        }
+    });
+}
+
+/*
  * query VAL Occ API for json array of occurrence data
  *
  * add array of circleMarkers to canvas renderer...
  *
 */
 function addValOccCanvas(taxonName=null) {
-    var mapExt = getMapLlExtents();
+    
+    console.log(`addValOccCanvas(${taxonName})`);
+    
+    if (taxonName) {alert(taxonName);}
+    
     var baseUrl = 'http://vtatlasoflife.org/biocache-service/occurrences/search?q='; // biocache-service/occurrences/search?q=*:*
     var pageSize = `&pageSize=${xhrRecsPerPage}`;
     if (!taxonName) {taxonName = `taxon_name:${getCanonicalName()}`;}
@@ -55,17 +85,7 @@ function addValOccCanvas(taxonName=null) {
     var valUrl = baseUrl + taxonName + pageSize + wkt;
     if(document.getElementById("apiUrlLabel")) {document.getElementById("apiUrlLabel").innerHTML = (valUrl);}
 
-    if (cmColor.select < 2) {cmColor.select++;} else {cmColor.select=0;}
-    
-    //remove all circleMarkers first...
-    cmLayer.forEach(function(cm, index) {
-        cm.remove(); //remove the marker from the map
-        delete cmLayer[index]; //delete it from our index of markers
-        cmIndex--;
-        if (cmLayer.length < 1) {
-            cmIndex = 0;
-        }
-    });
+    if (cmColor.select < cmColor.options.length) {cmColor.select++;} else {cmColor.select=0;}
 
     // abort pending requests and start a new chain
     initXhrRequest(valUrl);
@@ -106,8 +126,11 @@ function xhrResults(valXHR, url) {
     var perp = jsonRes.pageSize;
     var startIdx = jsonRes.startIndex;
     var netr = startIdx + perp;
+    if (netr > totr) {netr = totr;}
     if (document.getElementById("apiUrlLabel")) {document.getElementById("apiUrlLabel").innerHTML = (url+`&startIndex=${startIdx}`);}
-    if (document.getElementById("jsonResults")) {document.getElementById("jsonResults").innerHTML = `total records: ${totr}  |  records loaded: ${netr}`;}
+    if (document.getElementById("jsonResults")) {
+        document.getElementById("jsonResults").innerHTML = `total records: ${totr}  |  records loaded: ${netr}`;
+        }
     updateMap(jsonRes.occurrences);
     if (totr > netr) {
         loadPage(url, netr+1, xhrResults);
@@ -124,32 +147,22 @@ function occurrencePopupInfo(occRecord) {
 
 function updateMap(valJsonData) {
 
-    for (var i = 0; i < valJsonData.length; i += 1) {
+    for (var i = 0; i < valJsonData.length; i++) {
         if (!valJsonData[i].decimalLatitude || !valJsonData[i].decimalLongitude) {
             console.log(`WARNING: Occurrence Record without Lat/Lon values: ${valJsonData[i]}`);
             return;
         }
+        cmCount++;
         var llLoc = L.latLng(valJsonData[i].decimalLatitude, valJsonData[i].decimalLongitude);
         cmLayer[cmIndex++] = L.circleMarker(llLoc, {
             renderer: myRenderer,
-            radius: 3, //cmColor.options[cmColor.select].radius,
-            color: "red" //cmColor.options[cmColor.select].color
+            radius: cmColor.options[cmColor.select].radius,
+            color: cmColor.options[cmColor.select].color
           }).addTo(myMap).bindPopup(occurrencePopupInfo(valJsonData[i]));
     }
-    
-}
-/*
- * VAL Data Portal uses wkt bbox or lat/lon/rad.  this is not used here.
- */
-function getMapLlExtents() {
-    var llne = myMap.getBounds().getNorthEast();
-    var llsw = myMap.getBounds().getSouthWest();
-    return {
-        nelat: llne.lat,
-        nelng: llne.lng,
-        swlat: llsw.lat,
-        swlng: llsw.lng
-    };
+    if (document.getElementById("jsonResults")) {
+        document.getElementById("jsonResults").innerHTML += ` | records mapped: ${cmLayer.length} | ${cmCount}`;
+    }
 }
 
 function addMarker() {
@@ -166,6 +179,7 @@ function initValStandalone() {
 //integrated module usage
 export function getValOccCanvas(map) {
     myMap = map;
+    initValOccCanvas();
     addValOccCanvas();
 }
 
@@ -177,6 +191,7 @@ if (document.getElementById("valStandalone")) {
         
         // Add a listener to handle the 'Get Data' button click
         document.getElementById("getData").addEventListener("click", function() {
+            initValOccCanvas();
             addValOccCanvas();
         });
         
@@ -203,6 +218,16 @@ if (document.getElementById("valLoadOnOpen")) {
     window.addEventListener("load", function() {
 
         initValStandalone();
-        addValOccCanvas('Bombus borealis');
+        myMap.options.minZoom = 8;
+        myMap.options.maxZoom = 12;
+        initValOccCanvas();
+        //addValOccCanvas('Bombus borealis');
+        /*
+         * add multiple species to map, loaded from imported .js file (see top of this file)
+         * must be of the form {"species name": "name type"}
+         */
+        Object.keys(speciesList).forEach(function(key) {
+            addValOccCanvas(key);
+        });
     });
 }
