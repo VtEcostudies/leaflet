@@ -4,9 +4,9 @@ Leaflet experiment.
 Goals:
 - load wms from BISON and display over Leaflet (check)
 - load iNat ocurrence location data as an array of points with data (check)
-- load wms from GBIF and display as Leaflet layer
-- separate back-ends into separate modules and import into central js manager
-- respond to a click over a point on a wms overlay and retrieve data
+- load wms from GBIF and display as Leaflet layer (check)
+- separate back-ends into separate modules and import into central js manager (check)
+- respond to a click over a point on a wms overlay and retrieve data (to-do)
 */
 
 import {getInatOccCanvas} from "./occInatMap.js";
