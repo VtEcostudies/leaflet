@@ -136,6 +136,10 @@ export function getCanonicalName() {
     return getSelectedItemData('canonicalName');
 }
 
+export function getScientificName() {
+    return getSelectedItemData('scientificName');
+}
+
 export function getAllData() {
     return JSON.parse(getSelectedItemData('allData'));
 }

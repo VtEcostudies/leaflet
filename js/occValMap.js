@@ -4,6 +4,8 @@ Leaflet experiment.
 Goals:
 - load a json array from VAL Data Portal Ocurrence API and populate the map with point occurrence data
 */
+import {getCanonicalName, getScientificName, getAllData} from "./gbifAutoComplete.js";
+
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
 var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
 var cmLayer = []; //an array of circleMarker 'layers' to keep track of for removal and deletion
@@ -46,12 +48,14 @@ function addValOccCanvas() {
     var mapExt = getMapLlExtents();
     var baseUrl = 'http://vtatlasoflife.org/biocache-service/occurrences/search?q='; // /occurrences/search?q=*:*
     var speciesName = document.getElementById("gbif_autocomplete_name").value;
+    var taxonName = `taxon_name:${getCanonicalName()}`;
+    var scientificName = `taxon_name:${getScientificName()}`;
     var pageSize = `&pageSize=${xhrRecsPerPage}`;
     var lat = ``;
     var lon = ``;
     var radius = ``;
     var wkt = `&wkt=${vtWKT}`;
-    var valUrl = baseUrl + speciesName + pageSize + lat + lon + radius + wkt;
+    var valUrl = baseUrl + taxonName + pageSize + lat + lon + radius + wkt;
     document.getElementById("apiUrlLabel").innerHTML = (valUrl);
 
     if (cmColor.select < 2) {cmColor.select++;} else {cmColor.select=0;}
@@ -191,5 +195,22 @@ if (document.getElementById("valStandalone")) {
         document.getElementById("getData").addEventListener("click", function() {
             addValOccCanvas();
         });
+        
+        // Add a listener to handle the 'Get Data' button click
+        document.getElementById("getInfo").addEventListener("click", function() {
+            var data = getAllData();
+            var info = '';
+            if (data) {
+                Object.keys(data).forEach(function(key) {
+                    info += `${key}: ${data[key]}` + String.fromCharCode(13);
+                });
+                alert(info);
+            } else {
+                alert('No Species Selected.');
+            }
+            //alert(getCanonicalName());
+            //alert(getScientificName());
+        });
+
     });
 }
