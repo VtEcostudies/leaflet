@@ -82,6 +82,8 @@ function gbifAutoComplete(event) {
                     var option = document.createElement('option', { is : 'gbif_autocomplete_option  ' }); //***THE ARGUMENT MUST BE 'option'***
                     option.value = item.canonicalName;
                     option.setAttribute('taxonKey', item.key);
+                    option.setAttribute('canonicalName', item.canonicalName);
+                    option.setAttribute('scientificName', item.scientificName);
                     option.setAttribute('allData', JSON.stringify(item));
 
                     // attach the option to the datalist element
@@ -128,6 +130,10 @@ function getSelectedItemData(dataItem) {
 
 export function getTaxonKey() {
     return getSelectedItemData('taxonKey');
+}
+
+export function getCanonicalName() {
+    return getSelectedItemData('canonicalName');
 }
 
 export function getAllData() {
