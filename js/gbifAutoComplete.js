@@ -1,25 +1,32 @@
-window.addEventListener("load", function() {
+if (document.getElementById('gbif_autocomplete_name')) {
+    window.addEventListener("load", function() {
+    
+        // Add a keyup event listener to our input element
+        var name_input = document.getElementById('gbif_autocomplete_name');
+        name_input.addEventListener("keyup", function(event) {gbifAutoComplete(event);});
+    
+        // create one global XHR object 
+        // this allows us to abort pending requests when a new one is made
+        window.gbifXHR = new XMLHttpRequest();
+    });
+}
 
-    // Add a keyup event listener to our input element
-    var name_input = document.getElementById('gbif_autocomplete_name');
-    name_input.addEventListener("keyup", function(event) {gbifAutoComplete(event);});
-
-    if (document.getElementById("getTaxonKey")) {
-        // Add a listener to handle the 'Get Taxon Key' button click
-        document.getElementById("getTaxonKey").addEventListener("click", function() {
-            var data = getAllData();
-            var info = '';
-            Object.keys(data).forEach(function(key) {
-                info += `${key}: ${data[key]}` + String.fromCharCode(13);
+if (document.getElementById('getTaxonKey')) {
+    window.addEventListener("load", function() {
+    
+        if (document.getElementById("getTaxonKey")) {
+            // Add a listener to handle the 'Get Taxon Key' button click
+            document.getElementById("getTaxonKey").addEventListener("click", function() {
+                var data = getAllData();
+                var info = '';
+                Object.keys(data).forEach(function(key) {
+                    info += `${key}: ${data[key]}` + String.fromCharCode(13);
+                });
+                alert(info);
             });
-            alert(info);
-        });
-    }
-
-    // create one global XHR object 
-    // this allows us to abort pending requests when a new one is made
-    window.gbifXHR = new XMLHttpRequest();
-});
+        }
+    });
+}
 
 // Autocomplete for text input with list
 function gbifAutoComplete(event) {

@@ -39,24 +39,21 @@ function addMap() {
  *
  * add array of circleMarkers to canvas renderer...
  *
- * to-do:
- * the api call needs to be changed to query on q=taxon_name:blabber bird.  VAL ala-demo general search
- * returns all matches for terms submitted.  it does not narrow the search.
- * 
 */
-function addValOccCanvas() {
+function addValOccCanvas(taxonName=null) {
     var mapExt = getMapLlExtents();
-    var baseUrl = 'http://vtatlasoflife.org/biocache-service/occurrences/search?q='; // /occurrences/search?q=*:*
-    var speciesName = document.getElementById("gbif_autocomplete_name").value;
-    var taxonName = `taxon_name:${getCanonicalName()}`;
-    var scientificName = `taxon_name:${getScientificName()}`;
+    var baseUrl = 'http://vtatlasoflife.org/biocache-service/occurrences/search?q='; // biocache-service/occurrences/search?q=*:*
     var pageSize = `&pageSize=${xhrRecsPerPage}`;
-    var lat = ``;
-    var lon = ``;
-    var radius = ``;
+    if (!taxonName) {taxonName = `taxon_name:${getCanonicalName()}`;}
+    /*
+    var lat = `&lat:`;
+    var lon = `&lon:`;
+    var radius = `&rad:10`;
+    var valUrl = baseUrl + taxonName + pageSize + lat + lon + radius;
+    */
     var wkt = `&wkt=${vtWKT}`;
-    var valUrl = baseUrl + taxonName + pageSize + lat + lon + radius + wkt;
-    document.getElementById("apiUrlLabel").innerHTML = (valUrl);
+    var valUrl = baseUrl + taxonName + pageSize + wkt;
+    if(document.getElementById("apiUrlLabel")) {document.getElementById("apiUrlLabel").innerHTML = (valUrl);}
 
     if (cmColor.select < 2) {cmColor.select++;} else {cmColor.select=0;}
     
@@ -157,20 +154,7 @@ function getMapLlExtents() {
 
 function addMarker() {
     var marker = L.marker([43.6962, -72.3197]).addTo(myMap);
-    marker.bindPopup("<b>Vermont Center for Ecostudies</b>").openPopup();
-}
-
-/*
- * This idea is semi-deprecated for this implementation.  We don't re-load
- * data on zoom or move.  It might have value later so leave it here.
- */
-function addEventCallbacks() {
-myMap.on('zoomend', function () {
-    addValOccCanvas();
-});
-myMap.on('moveend', function () {
-    addValOccCanvas();
-});
+    marker.bindPopup("<b>Vermont Center for Ecostudies</b>");
 }
 
 //standalone module usage
@@ -188,7 +172,7 @@ export function getValOccCanvas(map) {
 //standalone module setup
 if (document.getElementById("valStandalone")) {
     window.addEventListener("load", function() {
-
+        
         initValStandalone();
         
         // Add a listener to handle the 'Get Data' button click
@@ -212,5 +196,13 @@ if (document.getElementById("valStandalone")) {
             //alert(getScientificName());
         });
 
+    });
+}
+//valLoadOnOpen
+if (document.getElementById("valLoadOnOpen")) {
+    window.addEventListener("load", function() {
+
+        initValStandalone();
+        addValOccCanvas('Bombus borealis');
     });
 }
