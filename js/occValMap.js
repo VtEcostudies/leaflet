@@ -17,7 +17,7 @@ window.valXHR = new XMLHttpRequest();
 
 //for standalone use
 function addMap() {
-    var myMap = L.map('mapid', {
+    myMap = L.map('mapid', {
             center: vtCenter,
             zoom: 8,
             crs: L.CRS.EPSG3857 //have to do this to conform to USGS maps
@@ -36,6 +36,11 @@ function addMap() {
  * query VAL Occ API for json array of occurrence data
  *
  * add array of circleMarkers to canvas renderer...
+ *
+ * to-do:
+ * the api call needs to be changed to query on q=taxon_name:blabber bird.  VAL ala-demo general search
+ * returns all matches for terms submitted.  it does not narrow the search.
+ * 
 */
 function addValOccCanvas() {
     var mapExt = getMapLlExtents();
@@ -164,21 +169,27 @@ myMap.on('moveend', function () {
 });
 }
 
-window.addEventListener("load", function() {
-    // create one global XHR object 
-    // this allows us to abort pending requests when a new one is made
-    //window.valXHR = new XMLHttpRequest();
-});
-
 //standalone module usage
-export function addMapGetInatOcc() {
+function initValStandalone() {
     addMap();
     addMarker();
-    addValOccCanvas();
-    addEventCallbacks();
 }
+
 //integrated module usage
 export function getValOccCanvas(map) {
     myMap = map;
     addValOccCanvas();
+}
+
+//standalone module setup
+if (document.getElementById("valStandalone")) {
+    window.addEventListener("load", function() {
+
+        initValStandalone();
+        
+        // Add a listener to handle the 'Get Data' button click
+        document.getElementById("getData").addEventListener("click", function() {
+            addValOccCanvas();
+        });
+    });
 }

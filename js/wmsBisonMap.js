@@ -3,8 +3,8 @@ jtl 10/11/2018
 Leaflet experiment.
 Goals:
 - load wms from BISON and display over Leaflet (check)
-- load ocurrence location data as an array of points with data
-- respond to a click over a point on a wms overlay and retrieve data
+- load BISON ocurrence location data as an array of points with data (to-do)
+- respond to a click over a point on a wms overlay and retrieve data (to-do)
 */
 
 
@@ -89,7 +89,7 @@ function toWebMercator(lat, lon) {
 
 function addMarker() {
     var marker = L.marker([43.6962, -72.3197]).addTo(myMap);
-    marker.bindPopup("<b>Vermont Center for Ecostudies</b>").openPopup();
+    marker.bindPopup("<b>Vermont Center for Ecostudies</b>");
 }
 
 function addEventCallbacks() {
@@ -105,14 +105,26 @@ myMap.on('moveend', function () {
 }
 
 //standalone use
-export function addMapAddBisonWms() {
+function initBisonStandalone() {
     addMap();
     addMarker();
-    addBisonWmsOverlay();
     addEventCallbacks();
 }
 //integrated use
 export function getBisonWmsOverlay(map) {
     myMap = map;
     addBisonWmsOverlay();
+}
+
+if (document.getElementById("bisonStandalone")) {
+    window.addEventListener("load", function() {
+    
+        initBisonStandalone();
+        
+        // Add a listener to handle the 'Get Data' button click
+        document.getElementById("getData").addEventListener("click", function() {
+            addBisonWmsOverlay();
+        });
+    
+    });
 }

@@ -4,7 +4,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="utf-8"/>
 	<link rel="stylesheet" href="css/bootstrap.css">
-	<link rel="stylesheet" href="css/bootstrap-theme.css">
+	<!--<link rel="stylesheet" href="css/bootstrap-theme.css">-->
 	<link rel="stylesheet" href="css/vce-styles.css">
     
     <link rel="SHORTCUT ICON" href="img/favicon.ico"/>
@@ -22,7 +22,7 @@
     <!-- VectorGrid extension for Leaflet (enables vector tiles maps from GBIF) -->
     <script src="https://unpkg.com/leaflet.vectorgrid@latest/dist/Leaflet.VectorGrid.js"></script>
     
-    <script type="module" src="js/webmap.js"></script>
+    <script type="module" src="js/occValMap.js"></script>
     <script type="module" src="js/gbifAutoComplete.js"></script>
 
 </head>	
@@ -30,16 +30,16 @@
 
     <div class="vceHeader">
       <div class="row">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <a href="https://val.vtecostudies.org"><img src="img/val_logo_medium.png"/></a>
         </div> <!-- col --> 
-        <div class="col-md-6">
-            <h1>Vermont Atlas of Life Species Map</font></h1>
+        <div class="col-md-7">
+            <h1>Vermont Atlas of Life Species Map</h1>
         </div> <!-- col --> 
       </div> <!-- row -->
     </div> <!-- container -->
 
-    <div class="jumbotron" style="padding-top:15px;">
+    <div id="valStandalone" class="jumbotron" style="padding-top:15px;">
         <div class="row">
 
             <div id="vtatlas_webmap" class="col-md-12" style="padding-left:25px;">
@@ -62,10 +62,9 @@
                 <label id="apiUrlLabel" class="small vceOutline"></label>
                 <label id="jsonResults" class="small vceOutline"></label>
             </div> <!-- col -->
-
         </div> <!-- /row -->
     </div> <!-- /container -->
-</body>
     <script src="js/jquery.min.js"></script>
     <script src="js/bootstrap.min.js"></script>
+</body>
 </html>
