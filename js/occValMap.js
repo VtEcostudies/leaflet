@@ -12,7 +12,7 @@ var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
 var cmGroup = {}; //object of layerGroups of different species' markers grouped into layers
 var cmCount = {}; //a global counter for cmLayer array-objects across mutiple species
 var cgColor = {}; //object of colors for species layers
-var colors = {0:"red",1:"blue",2:"green",3:"yellow",4:"purple",5:"grey"};
+var colors = {0:"blue",1:"green",2:"red",3:"yellow",4:"orange",5:"purple",6:"cyan",7:"grey"};
 var valMap = {};
 var grpFeature = false;  //used for .bringToFront() to get datapoint on top of boundary layers
 var layerControl = false;
@@ -93,7 +93,7 @@ function addBoundaries() {
  */
 function initValOccCanvas() {
     console.log(`initValOccCanvas()`);
-    cmCount = 1;
+    cmCount['all'] = 1;
     //remove all circleMarkers from each group by clearing the layer
     Object.keys(cmGroup).forEach(function(key){
         console.log(`Clear layer '${key}'`);
@@ -179,7 +179,6 @@ function xhrResults(valXHR, url, taxonName) {
 }
 
 function updateMap(valJsonData, taxonName) {
-    console.log(`updateMap(${valJsonData[0].species})`);
     for (var i = 0; i < valJsonData.length; i++) {
         if (!valJsonData[i].decimalLatitude || !valJsonData[i].decimalLongitude) {
             console.log(`WARNING: Occurrence Record without Lat/Lon values: ${valJsonData[i]}`);
@@ -231,13 +230,22 @@ function initValStandalone() {
 }
 
 //integrated module usage
-export function getValOccCanvas(map) {
+export function getValOccCanvas(map, taxonName) {
     valMap = map;
     initValOccCanvas();
-    addValOccCanvas();
+    cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
+    cgColor[taxonName] = colors[0];
+    cmCount[taxonName] = 1;
+    addValOccCanvas(taxonName);
+    addBoundaries();
+    //if (!speciesLayers) {speciesLayers = L.control.layers().addTo(valMap);}
 }
 
-//standalone module setup
+/*
+ * Standalone module setup
+ *
+ * Required html element where id="valStandalone"
+ */
 if (document.getElementById("valStandalone")) {
     window.addEventListener("load", function() {
         
@@ -267,7 +275,12 @@ if (document.getElementById("valStandalone")) {
 
     });
 }
-//valLoadOnOpen
+/*
+ * Minimal (map-only) standalone use
+ * 
+ * Requires html element where id="valLoadOnOpen"
+ *
+ */
 if (document.getElementById("valLoadOnOpen")) {
     window.addEventListener("load", function() {
 

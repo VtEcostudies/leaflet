@@ -12,66 +12,89 @@ Goals:
 import {getInatOccCanvas} from "./occInatMap.js";
 import {getBisonWmsOverlay} from "./wmsBisonMap.js";
 import {getGbifTile} from "./occGbifTileMap.js";
-import {getTaxonKey} from "./gbifAutoComplete.js";
+import {getTaxonKey, getCanonicalName, getScientificName, getAllData} from "./gbifAutoComplete.js";
 import {getValOccCanvas} from "./occValMap.js";
 
 //USGS BISON wms coordinate system is only EPSG:3857
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
 var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
-var myMap = {};
+var valMap = {};
+var layerControl = false;
 var wmsBison = false; //flag to show a Bison WMS overlay map
 var occInat = false; //flag to show an iNat JSON Occurrence vector map
 var occGbifTile = false; //flag to add a GBIF vectorgrid tile layer
 var occVal = true; //flag to add a VAL Data Portal map of occurrence vector data
 
 function addMap() {
-    myMap = L.map('mapid', {
+    valMap = L.map('mapid', {
             center: vtCenter,
             zoom: 8,
-            crs: L.CRS.EPSG3857
+            crs: L.CRS.EPSG3857 //have to do this to conform to USGS maps
         });
-   
-    L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
+
+    var light = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
+        maxZoom: 20,
+        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
+            '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+            'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+        id: 'mapbox.light'
+    }).addTo(valMap);
+    
+    var satellite = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
+        maxZoom: 20,
+        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
+            '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+            'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+        id: 'mapbox.satellite'
+    });
+    
+    var streets = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
         maxZoom: 20,
         attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
             '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
             'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
         id: 'mapbox.streets'
-    }).addTo(myMap);
+    });
+
+    if(layerControl === false) {
+        layerControl = L.control.layers().addTo(valMap);
+    }
+
+    layerControl.addBaseLayer(light, "Grayscale");
+    layerControl.addBaseLayer(satellite, "Satellite");
+    layerControl.addBaseLayer(streets, "Streets");
 }
 
 function addMarker() {
-    var marker = L.marker([43.6962, -72.3197]).addTo(myMap);
+    var marker = L.marker([43.6962, -72.3197]).addTo(valMap);
     marker.bindPopup("<b>Vermont Center for Ecostudies</b>").openPopup();
 }
 
 function getData() {
-    if (wmsBison) {getBisonWmsOverlay(myMap);}
-    if (occInat) {getInatOccCanvas(myMap);}
-    if (occGbifTile) {getGbifTile(myMap, getTaxonKey());}  //NOTE: this gets a vector tile map, which scales/moves automagically.  event callback updates not needed.
-    if (occVal) {getValOccCanvas(myMap);}
+    if (wmsBison) {getBisonWmsOverlay(valMap);}
+    if (occInat) {getInatOccCanvas(valMap);}
+    if (occGbifTile) {getGbifTile(valMap, getTaxonKey());}  //NOTE: this gets a vector tile map, which scales/moves automagically.  event callback updates not needed.
+    if (occVal) {getValOccCanvas(valMap, getCanonicalName());}
 }
 
 addMap();
 addMarker();
 
-myMap.on('load', function () {
-    if (wmsBison) {getBisonWmsOverlay(myMap);}
-    if (occInat) {getInatOccCanvas(myMap);}
-    //if (occVal) {getValOccCanvas(myMap);}
+valMap.on('load', function () {
+    if (wmsBison) {getBisonWmsOverlay(valMap);}
+    if (occInat) {getInatOccCanvas(valMap);}
+    //if (occVal) {getValOccCanvas(valMap);}
 });
-myMap.on('zoomend', function () {
-    if (wmsBison) {getBisonWmsOverlay(myMap);}
-    if (occInat) {getInatOccCanvas(myMap);}
-    //if (occVal) {getValOccCanvas(myMap);}
+valMap.on('zoomend', function () {
+    if (wmsBison) {getBisonWmsOverlay(valMap);}
+    if (occInat) {getInatOccCanvas(valMap);}
+    //if (occVal) {getValOccCanvas(valMap);}
 });
-myMap.on('moveend', function () {
-    if (wmsBison) {getBisonWmsOverlay(myMap);}
-    if (occInat) {getInatOccCanvas(myMap);}
-    //if (occVal) {getValOccCanvas(myMap);}
+valMap.on('moveend', function () {
+    if (wmsBison) {getBisonWmsOverlay(valMap);}
+    if (occInat) {getInatOccCanvas(valMap);}
+    //if (occVal) {getValOccCanvas(valMap);}
 });
-
-//getData(); //now we have a species lookup.  start with blank map.
 
 window.addEventListener("load", function() {
 
