@@ -82,7 +82,7 @@ function zoomCenterMap() {
 }
 
 addMap();
-addMarker();
+//addMarker();
 
 valMap.on('load', function () {
     if (wmsBison) {getBisonWmsOverlay(valMap);}

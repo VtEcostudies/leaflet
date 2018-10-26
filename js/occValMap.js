@@ -244,7 +244,7 @@ function addMarker() {
 //standalone module usage
 function initValStandalone() {
     addMap();
-    addMarker();
+    //addMarker();
     addMapCallbacks();
 }
 
