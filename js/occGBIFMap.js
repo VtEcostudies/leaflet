@@ -140,7 +140,7 @@ myMap.on('moveend', function () {
 //standalone module usage
 export function addMapGetGbifOcc() {
     addMap();
-    addMarker();
+    //addMarker();
     addGbifOccCanvas();
     addEventCallbacks();
 }

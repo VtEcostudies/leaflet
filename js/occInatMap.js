@@ -140,7 +140,7 @@ myMap.on('moveend', function () {
 //standalone module usage
 export function addMapGetInatOcc() {
     addMap();
-    addMarker();
+    //addMarker();
     addInatOccCanvas();
     addEventCallbacks();
 }

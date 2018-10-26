@@ -107,7 +107,7 @@ myMap.on('moveend', function () {
 //standalone use
 function initBisonStandalone() {
     addMap();
-    addMarker();
+    //addMarker();
     addEventCallbacks();
 }
 //integrated use

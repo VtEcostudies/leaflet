@@ -130,7 +130,7 @@ function addMarker() {
 //standalone use
 export function addMapAddGbifTile() {
     addMap();
-    addMarker();
+    //addMarker();
     //addGbifRasterTileLayer();
     addGbifVectorTileLayer();
 }
