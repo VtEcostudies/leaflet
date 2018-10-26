@@ -67,7 +67,7 @@ function addMap() {
 
 function addMarker() {
     var marker = L.marker([43.6962, -72.3197]).addTo(valMap);
-    marker.bindPopup("<b>Vermont Center for Ecostudies</b>").openPopup();
+    marker.bindPopup("<b>Vermont Center for Ecostudies</b>");
 }
 
 function getData() {
@@ -75,6 +75,10 @@ function getData() {
     if (occInat) {getInatOccCanvas(valMap);}
     if (occGbifTile) {getGbifTile(valMap, getTaxonKey());}  //NOTE: this gets a vector tile map, which scales/moves automagically.  event callback updates not needed.
     if (occVal) {getValOccCanvas(valMap, getCanonicalName());}
+}
+
+function zoomCenterMap() {
+    valMap.setView(vtCenter, 8);
 }
 
 addMap();
@@ -109,6 +113,11 @@ window.addEventListener("load", function() {
     // Add a listener to handle the 'Get Data' button click
     document.getElementById("getData").addEventListener("click", function() {
         getData();
+    });
+
+    // Add a listener to handle the 'Zoom/Center' button click
+    document.getElementById("zoomCtr").addEventListener("click", function() {
+        zoomCenterMap();
     });
 
 });

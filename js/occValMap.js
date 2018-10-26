@@ -5,6 +5,8 @@ Goals:
 - load a json array from VAL Data Portal Ocurrence API and populate the map with point occurrence data
 */
 import {getCanonicalName, getScientificName, getAllData} from "./gbifAutoComplete.js";
+//import {redIcon, orangeIcon, yellowIcon, greenIcon, blueIcon, violetIcon} from "./leaflet_marker_icons.js";
+import {iconList} from "./leaflet_marker_icons.js";
 import {speciesList} from "./map_these_species.js";
 
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
@@ -12,15 +14,21 @@ var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
 var cmGroup = {}; //object of layerGroups of different species' markers grouped into layers
 var cmCount = {}; //a global counter for cmLayer array-objects across mutiple species
 var cgColor = {}; //object of colors for species layers
+//var cgIcon = {}; //object of icons for species layers
 var colors = {0:"blue",1:"green",2:"red",3:"yellow",4:"orange",5:"purple",6:"cyan",7:"grey"};
 var valMap = {};
-var grpFeature = false;  //used for .bringToFront() to get datapoint on top of boundary layers
+//var grpFeature = false;  //used for .bringToFront() to get datapoint on top of boundary layers
 var layerControl = false;
-var speciesLayers = false;
+var speciesLayerControl = false;
 var myRenderer = L.canvas({ padding: 0.5 }); //make global so we can clear the canvas before updates...
 var xhrRecsPerPage = 500; //the number of records to load per ajax request.  more is faster.
 var vtWKT = "POLYGON((-73.3427 45.0104,-73.1827 45.0134,-72.7432 45.0153,-72.6100 45.0134,-72.5551 45.0075,-72.4562 45.0090,-72.3113 45.0037,-72.0964 45.0066,-71.9131 45.0070,-71.5636 45.0138,-71.5059 45.0138,-71.5294 44.9748,-71.4949 44.9123,-71.5567 44.8296,-71.6281 44.7506,-71.6061 44.7077,-71.5677 44.6481,-71.5388 44.5817,-71.6006 44.5533,-71.5746 44.5308,-71.5883 44.4955,-71.6556 44.4504,-71.7146 44.4093,-71.7957 44.3975,-71.8163 44.3563,-71.8698 44.3327,-71.9138 44.3484,-71.9865 44.3386,-72.0346 44.3052,-72.0428 44.2432,-72.0662 44.1930,-72.0360 44.1349,-72.0580 44.0698,-72.1101 44.0017,-72.0937 43.9671,-72.1252 43.9088,-72.1733 43.8682,-72.1994 43.7899,-72.1994 43.7899,-72.2392 43.7384,-72.3010 43.7056,-72.3271 43.6391,-72.3436 43.5893,-72.3793 43.5814,-72.3972 43.5027,-72.3807 43.4988,-72.3999 43.4150,-72.4123 43.3601,-72.3903 43.3591,-72.4081 43.3282,-72.3999 43.2762,-72.4370 43.2342,-72.4493 43.1852,-72.4480 43.1311,-72.4507 43.0679,-72.4438 43.0067,-72.4699 42.9846,-72.5276 42.9645,-72.5331 42.8951,-72.5633 42.8639,-72.5098 42.7863,-72.5166 42.7652,-72.4741 42.7541,-72.4590 42.7289,-73.2761 42.7465,-73.2912 42.8025,-73.2850 42.8357,-73.2678 43.0679,-73.2472 43.5022,-73.2561 43.5615,-73.2939 43.5774,-73.3049 43.6271,-73.3557 43.6271,-73.3976 43.5675,-73.4326 43.5883,-73.4285 43.6351,-73.4079 43.6684,-73.3907 43.7031,-73.3516 43.7701,-73.3928 43.8207,-73.3832 43.8533,-73.3969 43.9033,-73.4086 43.9365,-73.4134 43.9795,-73.4381 44.0427,-73.4141 44.1058,-73.3928 44.1921,-73.3427 44.2393,-73.3186 44.2467,-73.3406 44.3484,-73.3385 44.3690,-73.2946 44.4328,-73.3296 44.5367,-73.3832 44.5919,-73.3770 44.6569,-73.3681 44.7477,-73.3317 44.7857,-73.3324 44.8043,-73.3818 44.8398,-73.3564 44.9040,-73.3392 44.9181,-73.3372 44.9643,-73.3537 44.9799,-73.3447 45.0046,-73.3447 45.0109,-73.3426 45.0104,-73.3427 45.0104))";
 //window.valXHR = new XMLHttpRequest();  //use this if we want to limit ajax calls to singleton and abort previous requests
+var stateLayer = false;
+var countyLayer = false;
+var townLayer = false;
+var bioPhysicalLayer = false;
+var kmlGroup = false;
 
 //for standalone use
 function addMap() {
@@ -69,10 +77,10 @@ function addMap() {
  * https://github.com/mapbox/leaflet-omnivore
  */
 function addBoundaries() {
-    var stateLayer = omnivore.kml('../kml/VT_Data__State_Boundary.kml');
-    var countyLayer = omnivore.kml('../kml/VT_Data__County_Boundaries.kml');
-    var townLayer = omnivore.kml('../kml/VT_Data__Town_Boundaries.kml');
-    var bioPhysicalLayer = omnivore.kml('../kml/VTBiophysicalregions.kml').addTo(valMap);
+    stateLayer = omnivore.kml('../kml/LineString_VT_State_Boundary.kml');
+    countyLayer = omnivore.kml('../kml/LineString_VT_County_Boundaries.kml');
+    townLayer = omnivore.kml('../kml/LineString_VT_Town_Boundaries.kml');
+    bioPhysicalLayer = omnivore.kml('../kml/LineString_VT_Biophysical_Regions.kml').addTo(valMap);
 
     if(layerControl === false) {
         layerControl = L.control.layers().addTo(valMap);
@@ -82,10 +90,12 @@ function addBoundaries() {
     layerControl.addOverlay(countyLayer, "County Boundaries");
     layerControl.addOverlay(townLayer, "Town Boundaries");
     layerControl.addOverlay(bioPhysicalLayer, "Bio-physical Boundaries");
-
-    //if (!grpFeature) {grpFeature = L.featureGroup(bioPhysicalLayer);}
     
-    //grpFeature.bringToBack();
+    kmlGroup = new L.FeatureGroup();
+    kmlGroup.addLayer(stateLayer);
+    kmlGroup.addLayer(countyLayer);
+    kmlGroup.addLayer(townLayer);
+    kmlGroup.addLayer(bioPhysicalLayer);
 }
 
 /*
@@ -93,7 +103,7 @@ function addBoundaries() {
  */
 function initValOccCanvas() {
     console.log(`initValOccCanvas()`);
-    cmCount['all'] = 1;
+    cmCount['all'] = 0;
     //remove all circleMarkers from each group by clearing the layer
     Object.keys(cmGroup).forEach(function(key){
         console.log(`Clear layer '${key}'`);
@@ -187,15 +197,23 @@ function updateMap(valJsonData, taxonName) {
         cmCount[taxonName]++;
         cmCount['all']++;
         var llLoc = L.latLng(valJsonData[i].decimalLatitude, valJsonData[i].decimalLongitude);
+        /**/
         cmGroup[taxonName].addLayer(L.circleMarker(llLoc, {
             renderer: myRenderer,
             radius: 3,
             color: cgColor[taxonName]
-          }).bindPopup(occurrencePopupInfo(valJsonData[i])));
+        }).bindPopup(occurrencePopupInfo(valJsonData[i])));
+        /**/
+        /* this *EATS* memory.  map is *SLOW*
+        cmGroup[taxonName].addLayer(L.marker(llLoc, {
+            renderer: myRenderer,
+            icon: iconList[cgIcon[taxonName]]
+        }).bindPopup(occurrencePopupInfo(valJsonData[i])));
+        /**/
     }
     
     if (document.getElementById("jsonResults")) {
-        document.getElementById("jsonResults").innerHTML += ` | records mapped: ${cmCount['all']}`;
+        //document.getElementById("jsonResults").innerHTML += ` | records mapped: ${cmCount['all']}`;
     }
 }
 
@@ -227,18 +245,20 @@ function addMarker() {
 function initValStandalone() {
     addMap();
     addMarker();
+    addMapCallbacks();
 }
 
 //integrated module usage
 export function getValOccCanvas(map, taxonName) {
     valMap = map;
+    addMapCallbacks();
     initValOccCanvas();
     cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
     cgColor[taxonName] = colors[0];
     cmCount[taxonName] = 1;
     addValOccCanvas(taxonName);
-    addBoundaries();
-    //if (!speciesLayers) {speciesLayers = L.control.layers().addTo(valMap);}
+    if (!layerControl) {addBoundaries();}
+    //if (!speciesLayerControl) {speciesLayerControl = L.control.layers().addTo(valMap);}
 }
 
 /*
@@ -286,12 +306,11 @@ if (document.getElementById("valLoadOnOpen")) {
 
         initValStandalone();
         valMap.options.minZoom = 8;
-        valMap.options.maxZoom = 12;
+        valMap.options.maxZoom = 17;
         //initValOccCanvas();
         //addValOccCanvas('Bombus borealis');
         addBoundaries();
         getSpeciesListData();
-        if (grpFeature) grpFeature.bringToFront();
         
         // Add a listener to handle the 'clear Data' button click
         if (document.getElementById("clearData")) {
@@ -306,6 +325,29 @@ if (document.getElementById("valLoadOnOpen")) {
                 getSpeciesListData();
             });
         }
+        if (document.getElementById("bringToBack")) {
+            document.getElementById("bringToBack").addEventListener("click", function() {
+/*
+                kmlGroup.bringToBack();
+                kmlGroup.setStyle(function(feature) {
+                        return {color: 'black'};
+                    });
+*/
+                bioPhysicalLayer.setStyle(function() {return {color: 'black'};});
+            });
+        }
+        if (document.getElementById("bringToFront")) {
+            document.getElementById("bringToFront").addEventListener("click", function() {
+/*
+                kmlGroup.bringToFront();
+                kmlGroup.setStyle(function(feature) {
+                        return {color: 'grey'};
+                    }
+                );
+*/
+                bioPhysicalLayer.setStyle(function() {return {color: 'grey'};});
+            });
+        }
 
     });
 }
@@ -315,20 +357,31 @@ if (document.getElementById("valLoadOnOpen")) {
  * must be of the form {"species name": "name type", "species name": "name type", ...}
  */
 function getSpeciesListData() {
-    cmCount['all'] = 1;
+    cmCount['all'] = 0;
     var i=0;
     
-    if (!grpFeature) {grpFeature = L.featureGroup();}
+    //if (!grpFeature) {grpFeature = L.featureGroup();}
 
-    if (!speciesLayers) {speciesLayers = L.control.layers().addTo(valMap);}
+    if (!speciesLayerControl) {speciesLayerControl = L.control.layers().addTo(valMap);}
     
-    Object.keys(speciesList).forEach(function(key) {
-        cmGroup[key] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-        grpFeature.addLayer(cmGroup[key]);
-        cgColor[key] = colors[i++];
-        cmCount[key] = 1;
-        console.log(`Add species group ${key} with color ${cgColor[key]}`);
-        addValOccCanvas(key);
-        speciesLayers.addOverlay(cmGroup[key], key);
+    Object.keys(speciesList).forEach(function(taxonName) {
+        cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
+        //grpFeature.addLayer(cmGroup[taxonName]); //attempt to add a layerGroup (which is itself an array of layers) to a feature group...
+        //cgIcon[taxonName] = i; //for use with marker custom icons (how we deal with layers and colors.  ugh.)
+        cgColor[taxonName] = colors[i]; //for use with circleMarker colors
+        cmCount[taxonName] = 0;
+        console.log(`Add species group ${taxonName} with color ${cgColor[taxonName]}`);
+        addValOccCanvas(taxonName);
+        speciesLayerControl.addOverlay(cmGroup[taxonName], taxonName);
+        i++;
+    });
+}
+
+function addMapCallbacks() {
+    valMap.on('overlayadd', function (event) {
+        stateLayer.setStyle(function() {return {color: 'grey'};});
+        countyLayer.setStyle(function() {return {color: 'grey'};});
+        townLayer.setStyle(function() {return {color: 'grey'};});
+        bioPhysicalLayer.setStyle(function() {return {color: 'grey'};});
     });
 }
