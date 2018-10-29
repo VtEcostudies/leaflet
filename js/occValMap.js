@@ -121,10 +121,11 @@ function addValOccCanvas(taxonName=false) {
     
     console.log(`addValOccCanvas(${taxonName})`);
     
-    var baseUrl = 'http://vtatlasoflife.org/biocache-service/occurrences/search?q='; // biocache-service/occurrences/search?q=*:*
+    var baseUrl = 'http://vtatlasoflife.org/biocache-service/occurrences/search'; // biocache-service/occurrences/search?q=*:*
     var pageSize = `&pageSize=${xhrRecsPerPage}`;
     if (!taxonName) {taxonName = getCanonicalName();}
-    var taxonUrl = `taxon_name:${taxonName}`;
+    var q = `?q=${taxonName}`; //this formation of the search appears to match to scientificName properly
+    var fq = ``; //`&fq=year:2018&fq=basis_of_record:PreservedSpecimen`;
     /*
     var lat = `&lat:`;
     var lon = `&lon:`;
@@ -132,7 +133,7 @@ function addValOccCanvas(taxonName=false) {
     var valUrl = baseUrl + taxonUrl + pageSize + lat + lon + radius;
     */
     var wkt = `&wkt=${vtWKT}`;
-    var valUrl = baseUrl + taxonUrl + pageSize + wkt;
+    var valUrl = baseUrl + q + fq + pageSize + wkt;
     if(document.getElementById("apiUrlLabel")) {document.getElementById("apiUrlLabel").innerHTML = (valUrl);}
 
     // start a new chain of fetch events
@@ -191,6 +192,10 @@ function xhrResults(valXHR, url, taxonName) {
 function updateMap(valJsonData, taxonName) {
     for (var i = 0; i < valJsonData.length; i++) {
         if (!valJsonData[i].decimalLatitude || !valJsonData[i].decimalLongitude) {
+            console.log(`WARNING: Occurrence Record without Lat/Lon values: ${valJsonData[i]}`);
+            return;
+        }
+        if (!valJsonData[i].species || !valJsonData[i].decimalLongitude) {
             console.log(`WARNING: Occurrence Record without Lat/Lon values: ${valJsonData[i]}`);
             return;
         }
