@@ -24,6 +24,7 @@ var wmsBison = false; //flag to show a Bison WMS overlay map
 var occInat = false; //flag to show an iNat JSON Occurrence vector map
 var occGbifTile = false; //flag to add a GBIF vectorgrid tile layer
 var occVal = true; //flag to add a VAL Data Portal map of occurrence vector data
+var testHarness = false; //flag for testing mode
 
 function addMap() {
     valMap = L.map('mapid', {
@@ -82,49 +83,54 @@ function zoomCenterMap() {
 }
 
 addMap();
-//addMarker();
 
 valMap.on('load', function () {
     if (wmsBison) {getBisonWmsOverlay(valMap);}
     if (occInat) {getInatOccCanvas(valMap);}
-    //if (occVal) {getValOccCanvas(valMap);}
 });
 valMap.on('zoomend', function () {
     if (wmsBison) {getBisonWmsOverlay(valMap);}
     if (occInat) {getInatOccCanvas(valMap);}
-    //if (occVal) {getValOccCanvas(valMap);}
 });
 valMap.on('moveend', function () {
     if (wmsBison) {getBisonWmsOverlay(valMap);}
     if (occInat) {getInatOccCanvas(valMap);}
-    //if (occVal) {getValOccCanvas(valMap);}
 });
 
 window.addEventListener("load", function() {
 
     // Add a listener to fetch data when user hits 'Enter' in autocomplete
-    var name_input = document.getElementById('gbif_autocomplete_name');
-    name_input.addEventListener("keyup", function(event) {
-        if (event.key == "Enter") {
-            getData();
-        }
-    });
+    if (document.getElementById('gbif_autocomplete_name')) {
+        document.getElementById('gbif_autocomplete_name').addEventListener("keyup", function(event) {
+            if (event.key == "Enter") {
+                getData();
+            }
+        });
+    }
 
     // Add a listener to handle the 'Get Data' button click
-    document.getElementById("getData").addEventListener("click", function() {
-        getData();
-    });
+    if (document.getElementById("getData")) {
+        document.getElementById("getData").addEventListener("click", function() {
+            getData();
+        });
+    }
 
     // Add a listener to handle the 'Zoom/Center' button click
-    document.getElementById("zoomCtr").addEventListener("click", function() {
-        zoomCenterMap();
-    });
+    if (document.getElementById("zoomCtr")) {
+        document.getElementById("zoomCtr").addEventListener("click", function() {
+            zoomCenterMap();
+        });
+    }
 
     // Add a listener to handle the 'Text' button click
-    document.getElementById("test").addEventListener("click", function() {
-        testMarkers(getCanonicalName());
-    });
+    if (document.getElementById("test")) {
+        document.getElementById("test").addEventListener("click", function() {
+            testMarkers(getCanonicalName());
+        });
+    }
 
 });
 
-getValOccCanvas(valMap, 'Bombus borealis');
+if (testHarness) {
+    getValOccCanvas(valMap, 'Bombus borealis');
+}
