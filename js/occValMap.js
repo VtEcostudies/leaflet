@@ -7,9 +7,7 @@ Goals:
 import {getCanonicalName, getScientificName, getAllData} from "./gbifAutoComplete.js";
 //import {redIcon, orangeIcon, yellowIcon, greenIcon, blueIcon, violetIcon} from "./leaflet_marker_icons.js";
 //import {iconList} from "./leaflet_marker_icons.js";
-import {speciesList} from "./map_these_species.js";
-//import "./jquery-ui.min.js";
-//import "./SliderControl.js";
+import {speciesList} from "./mapTheseSpecies.js";
 
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
 var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
@@ -29,7 +27,8 @@ var stateLayer = false;
 var countyLayer = false;
 var townLayer = false;
 var bioPhysicalLayer = false;
-var kmlGroup = false;
+//var kmlGroup = false; //this was global.  not necessary b/c it's used in one function.
+var testHarness = false;
 
 //for standalone use
 function addMap() {
@@ -78,6 +77,8 @@ function addMap() {
  * https://github.com/mapbox/leaflet-omnivore
  */
 function addBoundaries() {
+    var kmlGroup = false;
+    
     stateLayer = omnivore.kml('../kml/LineString_VT_State_Boundary.kml');
     countyLayer = omnivore.kml('../kml/LineString_VT_County_Boundaries.kml');
     townLayer = omnivore.kml('../kml/LineString_VT_Town_Boundaries.kml');
@@ -103,8 +104,11 @@ function addBoundaries() {
  * https://github.com/dwilhelm89/LeafletSlider
  */
 function addTimeSlider(taxonName) {
-    //console.log(`addTimeSlider(${taxonName}) - layer: ${cmGroup[taxonName]}`);
-    sliderControl = L.control.sliderControl({position: "bottomleft", layer: cmGroup[taxonName]});
+    var taxonGroup = cmGroup[taxonName];
+    
+    console.log(`addTimeSlider(${taxonName}) - layer.options: ${Object.keys(taxonGroup)}`);
+    
+    sliderControl = L.control.sliderControl({position: "bottomleft", layer: taxonGroup, range: true});
     valMap.addControl(sliderControl);
     sliderControl.startSlider();
 }
@@ -210,7 +214,7 @@ function updateMap(valJsonData, taxonName) {
         cmCount[taxonName]++;
         cmCount['all']++;
         
-        console.log(`${cmCount[taxonName]} - lat: ${valJsonData[i].decimalLatitude} | lon: ${valJsonData[i].decimalLongitude}`);
+        //console.log(`${taxonName} | ${cmCount[taxonName]} | lat: ${valJsonData[i].decimalLatitude} | lon: ${valJsonData[i].decimalLongitude}`);
 
         var llLoc = L.latLng(valJsonData[i].decimalLatitude, valJsonData[i].decimalLongitude);
 
@@ -220,44 +224,86 @@ function updateMap(valJsonData, taxonName) {
             color: cgColor[taxonName],
             index: cmCount[taxonName],
             occurrence: valJsonData[i].species,
-            time: getTimeStamp(valJsonData[i])
+            time: getDateYYYYMMDD(valJsonData[i].eventDate)
         }).bindPopup(occurrencePopupInfo(valJsonData[i], cmCount[taxonName]));
         
-        cmGroup[taxonName].addLayer(marker);
-        marker.bindTooltip(`${cmCount[taxonName]}`, {opacity: 0.9});
+        cmGroup[taxonName].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
+        
+        if (testHarness) {
+            marker.bindTooltip(`${cmCount[taxonName]}`, {opacity: 0.9});
+        } else {
+            marker.bindTooltip(getDateYYYYMMDD(valJsonData[i].eventDate));
+        }
     }
     
     if (document.getElementById("jsonResults")) {
         document.getElementById("jsonResults").innerHTML += ` | records mapped: ${cmCount['all']}`;
     }
 }
-function getTimeStamp(occRecord) {
 
-    var time = ''; //`${occRecord.year}-${occRecord.month}-${occRecord.day}`;
+/*
+ * use moment to convert eventDate (which comes to us from VAL API as UTC epoch milliseconds with time *removed*, so
+ * it's always time 00:00, and we cannot report time, only date) to a standard date format.
+ *
+ * return date in the format YYYY-MM-DD
+ */
+function getDateYYYYMMDD(msecs) {
+
+    var m = moment.utc(msecs);
     
-    return time;
+    return m.format('YYYY-MM-DD');
+}
+function getDateMMMMDoYYYY(msecs) {
+
+    var m = moment.utc(msecs);
+    
+    return m.format('MMMM Do YYYY');
 }
 
 function occurrencePopupInfo(occRecord, index) {
     var info = '';
     
-    info += `Map Index: ${index}<br/>`;
+    if (testHarness) {info += `Map Index: ${index}<br/>`;}
     
     Object.keys(occRecord).forEach(function(key) {
-        if (['decimalLatitude',
-             'decimalLongitude',
-             'scientificName',
-             'occurrenceID',
-             'dataProviderName',
-             'dataResourceName',
-             'collector',
-             'basisOfRecord',
-             'raw_institutionCode',
-             'date','year','month','day'
-             ].includes(key)) {
-            info += `${key}: ${occRecord[key]}<br/>`;
-        }
-    });
+        switch(key) {
+            case 'raw_institutionCode':
+                if ('iNaturalist' == occRecord[key]) {
+                    info += `<a href="https://www.inaturalist.org/observations/${occRecord.occurrenceID}">iNaturalist Observation ${occRecord.occurrenceID} </a><br/>`;
+                } else if ('BISON' == occRecord[key]) {
+                    info += `<a href="https://bison.usgs.gov/api/search.jsonp?params=occurrenceID:${occRecord.occurrenceID}">BISON Observation ${occRecord.occurrenceID}</a><br/>`;
+                } else {
+                    info += `Institution: ${occRecord[key]}<br/>`;
+                }
+                break;
+            case 'decimalLatitude':
+                info += `Lat: ${occRecord[key]}`;
+                break;
+            case 'decimalLongitude':
+                info += `, Lon: ${occRecord[key]}<br/>`;
+                break;
+            case 'scientificName':
+                info += `Scientific Name: ${occRecord[key]}<br/>`;
+                break;
+            case 'collector':
+                info += `Collector: ${occRecord[key]}<br/>`;
+                break;
+            case 'basisOfRecord':
+                info += `Basis of Record: ${occRecord[key]}<br/>`;
+                break;
+            case 'eventDate':
+                var msecs = occRecord[key]; //epoch date in milliseconds at time 00:00
+                //var m = moment.utc(msecs); //convert to UTC. otherwise moment adjusts for locale and alters date to UTC-date-minus-locale-offset.
+                //info += `Event Date: ${m.format('MMMM Do YYYY')}<br/>`;
+                info += `Event Date: ${getDateMMMMDoYYYY(msecs)}<br/>`;
+                break;
+            case '':
+                info += `: ${occRecord[key]}<br/>`;
+                break;
+            default:
+                //info += `${key}: ${occRecord[key]}<br/>`;
+            }
+        });
     
     return info;    
 }

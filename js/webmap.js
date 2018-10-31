@@ -24,7 +24,7 @@ var wmsBison = false; //flag to show a Bison WMS overlay map
 var occInat = false; //flag to show an iNat JSON Occurrence vector map
 var occGbifTile = false; //flag to add a GBIF vectorgrid tile layer
 var occVal = true; //flag to add a VAL Data Portal map of occurrence vector data
-var testHarness = false; //flag for testing mode
+var testHarness = document.getElementById("testHarness"); //flag for testing mode
 
 function addMap() {
     valMap = L.map('mapid', {
@@ -123,8 +123,8 @@ window.addEventListener("load", function() {
     }
 
     // Add a listener to handle the 'Text' button click
-    if (document.getElementById("test")) {
-        document.getElementById("test").addEventListener("click", function() {
+    if (document.getElementById("testHarness")) {
+        document.getElementById("testHarness").addEventListener("click", function() {
             testMarkers(getCanonicalName());
         });
     }
