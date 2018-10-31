@@ -13,7 +13,7 @@ import {getInatOccCanvas} from "./occInatMap.js";
 import {getBisonWmsOverlay} from "./wmsBisonMap.js";
 import {getGbifTile} from "./occGbifTileMap.js";
 import {getTaxonKey, getCanonicalName, getScientificName, getAllData} from "./gbifAutoComplete.js";
-import {getValOccCanvas} from "./occValMap.js";
+import {getValOccCanvas, testMarkers} from "./occValMap.js";
 
 //USGS BISON wms coordinate system is only EPSG:3857
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
@@ -120,4 +120,11 @@ window.addEventListener("load", function() {
         zoomCenterMap();
     });
 
+    // Add a listener to handle the 'Text' button click
+    document.getElementById("test").addEventListener("click", function() {
+        testMarkers(getCanonicalName());
+    });
+
 });
+
+getValOccCanvas(valMap, 'Bombus borealis');

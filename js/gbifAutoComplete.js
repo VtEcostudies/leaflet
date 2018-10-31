@@ -11,6 +11,9 @@ if (document.getElementById('gbif_autocomplete_name')) {
     });
 }
 
+/*
+ * Optional listener to button press to retrieve taxon key for a chosen value.
+ */
 if (document.getElementById('getTaxonKey')) {
     window.addEventListener("load", function() {
     
@@ -28,7 +31,9 @@ if (document.getElementById('getTaxonKey')) {
     });
 }
 
-// Autocomplete for text input with list
+/*
+ * Main callback function to handle Autocomplete input for text input with list
+ */
 function gbifAutoComplete(event) {
     var auto_list = false;
     var input = false;
@@ -86,7 +91,7 @@ function gbifAutoComplete(event) {
 
                 response.forEach(function(item) {
                     // Create a new <option> element.  ***THE ARGUMENT MUST BE 'option'***
-                    var option = document.createElement('option', { is : 'gbif_autocomplete_option  ' }); //***THE ARGUMENT MUST BE 'option'***
+                    var option = document.createElement('option', { is : 'gbif_autocomplete_option' }); //***THE ARGUMENT MUST BE 'option'***
                     option.value = item.canonicalName;
                     option.setAttribute('taxonKey', item.key);
                     option.setAttribute('canonicalName', item.canonicalName);
@@ -107,13 +112,10 @@ function gbifAutoComplete(event) {
 }
 
 function validNameInput(str) {
-{
-    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(str))
-    {
-      return false;
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(str)) {
+        return false;
     }
-  }
-  return true;
+    return true;
 }
 
 function getSelectedItemData(dataItem) {
