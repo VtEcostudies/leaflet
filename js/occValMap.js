@@ -27,7 +27,7 @@ var stateLayer = false;
 var countyLayer = false;
 var townLayer = false;
 var bioPhysicalLayer = false;
-//var kmlGroup = false; //this was global.  not necessary b/c it's used in one function.
+//var kmlGroup = false; //this was global.  made it function scope so it's garbage collected.  gloval not necessary b/c it's used in one function.
 var testHarness = false;
 
 //for standalone use
@@ -122,8 +122,16 @@ function initValOccCanvas() {
     //remove all circleMarkers from each group by clearing the layer
     Object.keys(cmGroup).forEach(function(key){
         console.log(`Clear layer '${key}'`);
-        cmGroup[key].clearLayers(); 
+        cmGroup[key].clearLayers();
+        console.log(`Remove control layer for '${key}'`);
+        speciesLayerControl.removeLayer(cmGroup[key]);
+        delete cmGroup[key];
+        delete cmCount[key];
+        delete cgColor[key];
     });
+    console.log(`Remove species layer control from map`);
+    if (speciesLayerControl) {valMap.removeControl(speciesLayerControl);}
+    speciesLayerControl = false;
 }
 
 /*
@@ -323,15 +331,24 @@ function initValStandalone() {
 //integrated module usage
 export function getValOccCanvas(map, taxonName) {
     valMap = map;
-    addMapCallbacks();
-    initValOccCanvas();
-    cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-    cgColor[taxonName] = cmColors[0];
-    cmCount[taxonName] = 0;
-    addValOccCanvas(taxonName);
-    if (!layerControl) {addBoundaries();}
-    //if (!sliderControl) {addTimeSlider(taxonName);}
-    //if (!speciesLayerControl) {speciesLayerControl = L.control.layers().addTo(valMap);}
+
+    if (taxonName) {
+        addMapCallbacks();
+        initValOccCanvas();
+        cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
+        cgColor[taxonName] = cmColors[0];
+        cmCount[taxonName] = 0;
+        addValOccCanvas(taxonName);
+        if (!layerControl) {addBoundaries();}
+        //if (!sliderControl) {addTimeSlider(taxonName);}
+        if (!speciesLayerControl) {
+            speciesLayerControl = L.control.layers().addTo(valMap);
+            var idTaxonName = taxonName.split(' ').join('_');
+            speciesLayerControl.addOverlay(cmGroup[taxonName], `<span id=${idTaxonName}>${taxonName}</span>`);
+        }
+    } else {
+        initValOccCanvas();
+    }
 }
 
 /*
@@ -417,17 +434,32 @@ function getSpeciesListData() {
         cmCount[taxonName] = 0;
         console.log(`Add species group ${taxonName} with color ${cgColor[taxonName]}`);
         addValOccCanvas(taxonName);
-        speciesLayerControl.addOverlay(cmGroup[taxonName], taxonName);
+        var idTaxonName = taxonName.split(' ').join('_');
+        speciesLayerControl.addOverlay(cmGroup[taxonName], `<span id=${idTaxonName}>${taxonName}</span>`);
         i++;
     });
 }
 
 function addMapCallbacks() {
-    valMap.on('overlayadd', function (event) {
-        stateLayer.setStyle(function() {return {color: 'grey'};});
-        countyLayer.setStyle(function() {return {color: 'grey'};});
-        townLayer.setStyle(function() {return {color: 'grey'};});
-        bioPhysicalLayer.setStyle(function() {return {color: 'grey'};});
+    /*
+     * This is event is triggered for each 'layeradd', which in our case is for each circleMarker.
+     * It seems to perform OK, but that's a LOT of hits...
+     * May need to find another way to handle this.
+     */
+    valMap.on('layeradd', function (event) {
+        
+        if (stateLayer) {stateLayer.setStyle(function() {return {color: 'grey'};});}
+        if (countyLayer) {countyLayer.setStyle(function() {return {color: 'grey'};});}
+        if (townLayer) {townLayer.setStyle(function() {return {color: 'grey'};});}
+        if (bioPhysicalLayer) {bioPhysicalLayer.setStyle(function() {return {color: 'grey'};});}
+        
+        Object.keys(cmGroup).forEach(function(taxonName) {
+            var idTaxonName = taxonName.split(' ').join('_');
+            //console.log(`valMap.overlayadd() - ${idTaxonName} - cmGroup[${taxonName}]`);
+            if (document.getElementById(idTaxonName)) {
+                document.getElementById(idTaxonName).innerHTML = `${taxonName} (${cmCount[taxonName]})`;
+            }
+        });
     });
 }
 
