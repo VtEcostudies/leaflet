@@ -7,7 +7,7 @@ Goals:
 import {getCanonicalName, getScientificName, getAllData} from "./gbifAutoComplete.js";
 //import {redIcon, orangeIcon, yellowIcon, greenIcon, blueIcon, violetIcon} from "./leaflet_marker_icons.js";
 //import {iconList} from "./leaflet_marker_icons.js";
-import {speciesList} from "./mapTheseSpecies.js";
+import {colorsList, speciesList} from "./mapTheseSpecies.js";
 
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
 var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
@@ -420,7 +420,7 @@ if (document.getElementById("valLoadOnOpen")) {
 
 /*
  * add multiple species to map, loaded from imported .js file (see top of this file)
- * must be of the form {"species name": "name type", "species name": "name type", ...}
+ * must be of the form {"species name": color, "species name": color, ...}
  */
 function getSpeciesListData() {
     cmCount['all'] = 0;
@@ -430,7 +430,7 @@ function getSpeciesListData() {
     
     Object.keys(speciesList).forEach(function(taxonName) {
         cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-        cgColor[taxonName] = cmColors[i]; //for use with circleMarker colors
+        cgColor[taxonName] = speciesList[taxonName]; //cmColors[i]; //for use with circleMarker colors
         cmCount[taxonName] = 0;
         console.log(`Add species group ${taxonName} with color ${cgColor[taxonName]}`);
         addValOccCanvas(taxonName);

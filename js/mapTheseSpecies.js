@@ -1,8 +1,15 @@
-var speciesList = {
-    "Bombus borealis": "scientificName"
-    ,"Bombus impatiens": "scientificName"
-    ,"Bombus ternarius": "scientificName"
-    //,"Gavia immer": "scientificName"
-    };
+var colorsList = {
+    "vceRed": "#800000", //muted dark red
+    "vceBlue": "#21618c", //muted dark blue
+    "vceYellow": "#f1c40f", //goldenrod
+    "vcePurple": "#6c3483" //deep purple
+};
 
-export {speciesList};
+var speciesList = {
+    "Bombus borealis": colorsList.vceRed
+    ,"Bombus impatiens": colorsList.vceBlue
+    ,"Bombus ternarius": colorsList.vceYellow
+    //,"Gavia immer": colorsList.vcePurple
+};
+
+export {colorsList, speciesList};
