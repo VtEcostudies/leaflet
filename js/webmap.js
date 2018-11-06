@@ -84,10 +84,6 @@ function zoomCenterMap() {
 
 addMap();
 
-valMap.on('load', function () {
-    if (wmsBison) {getBisonWmsOverlay(valMap);}
-    if (occInat) {getInatOccCanvas(valMap);}
-});
 valMap.on('zoomend', function () {
     if (wmsBison) {getBisonWmsOverlay(valMap);}
     if (occInat) {getInatOccCanvas(valMap);}

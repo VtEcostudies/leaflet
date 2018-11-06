@@ -6,9 +6,10 @@ var colorsList = {
 };
 
 var speciesList = {
-    "Bombus borealis": colorsList.vceRed
-    ,"Bombus impatiens": colorsList.vceBlue
-    ,"Bombus ternarius": colorsList.vceYellow
+    "Bombus affinis": colorsList.vceRed
+    //,"Bombus borealis": colorsList.vceRed
+    //,"Bombus impatiens": colorsList.vceBlue
+    //,"Bombus ternarius": colorsList.vceYellow
     //,"Gavia immer": colorsList.vcePurple
 };
 

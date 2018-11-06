@@ -11,6 +11,7 @@ import {colorsList, speciesList} from "./mapTheseSpecies.js";
 
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
 var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
+var vtAltCtr = [43.858297, -72.446594]; //VT border center for the speciespage view, where px bounds are small and map is zoomed to fit
 var cmGroup = {}; //object of layerGroups of different species' markers grouped into layers
 var cmCount = {}; //a global counter for cmLayer array-objects across mutiple species
 var cgColor = {}; //object of colors for separate species layers
@@ -33,43 +34,51 @@ var testHarness = false;
 //for standalone use
 function addMap() {
     valMap = L.map('mapid', {
-            center: vtCenter,
+            zoomControl: false, //start with zoom hidden.  this allows us to add it below, in the location where we want it.
+            center: vtAltCtr,
             zoom: 8,
             crs: L.CRS.EPSG3857 //have to do this to conform to USGS maps
         });
 
-    var light = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
-        maxZoom: 20,
-        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
+    new L.Control.Zoom({ position: 'bottomright' }).addTo(valMap);
+
+    var attribLarge =  'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
             '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
-            'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
-        id: 'mapbox.light'
-    }).addTo(valMap);
-    
-    var satellite = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
-        maxZoom: 20,
-        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
+            'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>';
+            
+    var attribSmall =  '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>, ' +
             '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
-            'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
-        id: 'mapbox.satellite'
-    });
+            '© <a href="https://www.mapbox.com/">Mapbox</a>';
     
     var streets = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
         maxZoom: 20,
-        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
-            '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
-            'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+        attribution: attribSmall,
         id: 'mapbox.streets'
     });
+
+    var light = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
+        maxZoom: 20,
+        attribution: attribSmall,
+        id: 'mapbox.light'
+    });
+    
+    var satellite = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
+        maxZoom: 20,
+        attribution: attribSmall,
+        id: 'mapbox.satellite'
+    });
+    
+    valMap.addLayer(streets);
 
     if(layerControl === false) {
         layerControl = L.control.layers().addTo(valMap);
     }
 
+    layerControl.addBaseLayer(streets, "Streets");
     layerControl.addBaseLayer(light, "Grayscale");
     layerControl.addBaseLayer(satellite, "Satellite");
-    layerControl.addBaseLayer(streets, "Streets");
 
+    layerControl.setPosition("bottomright");
 }
 
 /*
@@ -82,7 +91,7 @@ function addBoundaries() {
     stateLayer = omnivore.kml('../kml/LineString_VT_State_Boundary.kml');
     countyLayer = omnivore.kml('../kml/LineString_VT_County_Boundaries.kml');
     townLayer = omnivore.kml('../kml/LineString_VT_Town_Boundaries.kml');
-    bioPhysicalLayer = omnivore.kml('../kml/LineString_VT_Biophysical_Regions.kml').addTo(valMap);
+    bioPhysicalLayer = omnivore.kml('../kml/LineString_VT_Biophysical_Regions.kml');
 
     if(layerControl === false) {
         layerControl = L.control.layers().addTo(valMap);
@@ -98,6 +107,9 @@ function addBoundaries() {
     kmlGroup.addLayer(countyLayer);
     kmlGroup.addLayer(townLayer);
     kmlGroup.addLayer(bioPhysicalLayer);
+    
+    countyLayer.addTo(valMap);
+    bioPhysicalLayer.addTo(valMap);
 }
 
 /*
@@ -345,6 +357,7 @@ export function getValOccCanvas(map, taxonName) {
             speciesLayerControl = L.control.layers().addTo(valMap);
             var idTaxonName = taxonName.split(' ').join('_');
             speciesLayerControl.addOverlay(cmGroup[taxonName], `<span id=${idTaxonName}>${taxonName}</span>`);
+            speciesLayerControl.setPosition("bottomright");
         }
     } else {
         initValOccCanvas();
@@ -394,13 +407,19 @@ if (document.getElementById("valStandalone")) {
 if (document.getElementById("valLoadOnOpen")) {
     window.addEventListener("load", function() {
 
+        var urlLoad = window.location.toString();
+        urlLoad = decodeURI(urlLoad);
+        var speciesStr = urlLoad.substring(urlLoad.lastIndexOf("=")+1);
+        console.log(`url-parsed species string: ${speciesStr}`);
+        var speciesObj = JSON.parse(speciesStr);
+    
         initValStandalone();
         valMap.options.minZoom = 8;
         valMap.options.maxZoom = 17;
         //initValOccCanvas();
         //addValOccCanvas('Bombus borealis');
         addBoundaries();
-        getSpeciesListData();
+        getSpeciesListData(speciesObj);
         
         // Add a listener to handle the 'clear Data' button click
         if (document.getElementById("clearData")) {
@@ -419,18 +438,27 @@ if (document.getElementById("valLoadOnOpen")) {
 }
 
 /*
- * add multiple species to map, loaded from imported .js file (see top of this file)
- * must be of the form {"species name": color, "species name": color, ...}
+ * Add multiple species to map, either passed as an argument or loaded from imported .js file (see top of this file)
+ * 
+ * argSpecies or speciesList must be of the form {"species name": "color", "species name": "color", ...}, and the
+ * JSON values must be in double quotes.
  */
-function getSpeciesListData() {
+function getSpeciesListData(argSpecies = false) {
     cmCount['all'] = 0;
     var i=0;
 
-    if (!speciesLayerControl) {speciesLayerControl = L.control.layers().addTo(valMap);}
+    if (!speciesLayerControl) {
+        speciesLayerControl = L.control.layers().addTo(valMap);
+        speciesLayerControl.setPosition("bottomright");
+    }
     
-    Object.keys(speciesList).forEach(function(taxonName) {
+    if (!argSpecies) {
+        argSpecies = speciesList;
+    }
+    
+    Object.keys(argSpecies).forEach(function(taxonName) {
         cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-        cgColor[taxonName] = speciesList[taxonName]; //cmColors[i]; //for use with circleMarker colors
+        cgColor[taxonName] = argSpecies[taxonName]; //define circleMarker color for each species mapped
         cmCount[taxonName] = 0;
         console.log(`Add species group ${taxonName} with color ${cgColor[taxonName]}`);
         addValOccCanvas(taxonName);
@@ -448,10 +476,10 @@ function addMapCallbacks() {
      */
     valMap.on('layeradd', function (event) {
         
-        if (stateLayer) {stateLayer.setStyle(function() {return {color: 'grey'};});}
+        if (stateLayer) {stateLayer.setStyle(function() {return {color: 'purple'};});}
         if (countyLayer) {countyLayer.setStyle(function() {return {color: 'grey'};});}
-        if (townLayer) {townLayer.setStyle(function() {return {color: 'grey'};});}
-        if (bioPhysicalLayer) {bioPhysicalLayer.setStyle(function() {return {color: 'grey'};});}
+        if (townLayer) {townLayer.setStyle(function() {return {color: 'brown'};});}
+        if (bioPhysicalLayer) {bioPhysicalLayer.setStyle(function() {return {color: '#373737'};});}
         
         Object.keys(cmGroup).forEach(function(taxonName) {
             var idTaxonName = taxonName.split(' ').join('_');
@@ -461,6 +489,14 @@ function addMapCallbacks() {
             }
         });
     });
+
+    valMap.on('zoomend', function () {
+        console.log(`Map Zoom: ${valMap.getZoom()}`);
+    });
+    valMap.on('moveend', function() {
+        console.log(`Map Center: ${valMap.getCenter()}`);
+    });
+
 }
 
 /* 
@@ -474,7 +510,8 @@ export function testMarkers(taxonName) {
     valMap.eachLayer(function(layer) {
         if ('occurrence' in layer.options) {
             console.log(layer.options.occurrence + ':' + layer.options.index);
-            layer.openTooltip();
+            //layer.openTooltip();
+            layer.openPopup();
             alert(layer.options.occurrence + ':' + layer.options.index);
             layer.closeTooltip();
         }
