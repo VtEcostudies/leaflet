@@ -6,7 +6,7 @@ var colorsList = {
 };
 
 var speciesList = {
-    "Bombus affinis": colorsList.vceRed
+    //"Bombus affinis": colorsList.vceRed
     //,"Bombus borealis": colorsList.vceRed
     //,"Bombus impatiens": colorsList.vceBlue
     //,"Bombus ternarius": colorsList.vceYellow

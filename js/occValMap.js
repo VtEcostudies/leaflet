@@ -5,8 +5,6 @@ Goals:
 - load a json array from VAL Data Portal Ocurrence API and populate the map with point occurrence data
 */
 import {getCanonicalName, getScientificName, getAllData} from "./gbifAutoComplete.js";
-//import {redIcon, orangeIcon, yellowIcon, greenIcon, blueIcon, violetIcon} from "./leaflet_marker_icons.js";
-//import {iconList} from "./leaflet_marker_icons.js";
 import {colorsList, speciesList} from "./mapTheseSpecies.js";
 
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
@@ -273,6 +271,7 @@ function getDateYYYYMMDD(msecs) {
     
     return m.format('YYYY-MM-DD');
 }
+
 function getDateMMMMDoYYYY(msecs) {
 
     var m = moment.utc(msecs);
