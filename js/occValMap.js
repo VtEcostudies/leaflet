@@ -288,9 +288,9 @@ function occurrencePopupInfo(occRecord, index) {
         switch(key) {
             case 'raw_institutionCode':
                 if ('iNaturalist' == occRecord[key]) {
-                    info += `<a href="https://www.inaturalist.org/observations/${occRecord.occurrenceID}">iNaturalist Observation ${occRecord.occurrenceID} </a><br/>`;
+                    info += `<a href="https://www.inaturalist.org/observations/${occRecord.occurrenceID}" target="_blank">iNaturalist Observation ${occRecord.occurrenceID} </a><br/>`;
                 } else if ('BISON' == occRecord[key]) {
-                    info += `<a href="https://bison.usgs.gov/api/search.jsonp?params=occurrenceID:${occRecord.occurrenceID}">BISON Observation ${occRecord.occurrenceID}</a><br/>`;
+                    info += `<a href="https://bison.usgs.gov/api/search.jsonp?params=occurrenceID:${occRecord.occurrenceID}" target="_blank">BISON Observation ${occRecord.occurrenceID}</a><br/>`;
                 } else {
                     info += `Institution: ${occRecord[key]}<br/>`;
                 }
