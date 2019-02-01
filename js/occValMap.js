@@ -86,10 +86,10 @@ function addMap() {
 function addBoundaries() {
     var kmlGroup = false;
     
-    stateLayer = omnivore.kml('../kml/LineString_VT_State_Boundary.kml');
-    countyLayer = omnivore.kml('../kml/LineString_VT_County_Boundaries.kml');
-    townLayer = omnivore.kml('../kml/LineString_VT_Town_Boundaries.kml');
-    bioPhysicalLayer = omnivore.kml('../kml/LineString_VT_Biophysical_Regions.kml');
+    stateLayer = omnivore.kml('kml/LineString_VT_State_Boundary.kml');
+    countyLayer = omnivore.kml('kml/LineString_VT_County_Boundaries.kml');
+    townLayer = omnivore.kml('kml/LineString_VT_Town_Boundaries.kml');
+    bioPhysicalLayer = omnivore.kml('kml/LineString_VT_Biophysical_Regions.kml');
 
     if(layerControl === false) {
         layerControl = L.control.layers().addTo(valMap);
