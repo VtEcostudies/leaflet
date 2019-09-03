@@ -154,7 +154,7 @@ function addValOccCanvas(taxonName=false) {
     
     console.log(`addValOccCanvas(${taxonName})`);
     
-    var baseUrl = 'http://vtatlasoflife.org/biocache-service/occurrences/search'; // biocache-service/occurrences/search?q=*:*
+    var baseUrl = 'https://biocache-ws.vtatlasoflife.org/occurrences/serach'; //'http://vtatlasoflife.org/biocache-service/occurrences/search'; // biocache-service/occurrences/search?q=*:*
     var pageSize = `&pageSize=${xhrRecsPerPage}`;
     if (!taxonName) {taxonName = getCanonicalName();}
     var q = `?q=${taxonName}`; //this formation of the search appears to match to scientificName properly
