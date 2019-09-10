@@ -104,7 +104,7 @@ function gbifAutoComplete(event) {
                 });
             }
         };
-        var api_url = "http://api.gbif.org/v1/species/suggest?q=" + input.value;
+        var api_url = "https://api.gbif.org/v1/species/suggest?q=" + input.value;
         if (document.getElementById('api_query')) {document.getElementById('api_query').innerHTML=api_url;}
         window.gbifXHR.open("GET", api_url, true);
         window.gbifXHR.send();
