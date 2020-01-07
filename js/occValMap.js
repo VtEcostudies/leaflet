@@ -2,7 +2,7 @@
 jtl 10/23/2018
 Leaflet experiment.
 Goals:
-- load a json array from VAL Data Portal Ocurrence API and populate the map with point occurrence data
+- load a json array from VAL Data Portal Occurrence API and populate the map with point occurrence data
 */
 import {getCanonicalName, getScientificName, getAllData} from "./gbifAutoComplete.js";
 import {colorsList, speciesList} from "./mapTheseSpecies.js";
@@ -16,9 +16,10 @@ var cgColor = {}; //object of colors for separate species layers
 var cmColors = {0:"#800000",1:"green",2:"blue",3:"yellow",4:"orange",5:"purple",6:"cyan",7:"grey"};
 var cmRadius = 4;
 var valMap = {};
-var layerControl = false;
-var sliderControl = false;
+var basemapLayerControl = false;
+var boundaryLayerControl = false;
 var speciesLayerControl = false;
+var sliderControl = false;
 var myRenderer = L.canvas({ padding: 0.5 }); //make global so we can clear the canvas before updates...
 var xhrRecsPerPage = 500; //the number of records to load per ajax request.  more is faster.
 var vtWKT = "POLYGON((-73.3427 45.0104,-73.1827 45.0134,-72.7432 45.0153,-72.6100 45.0134,-72.5551 45.0075,-72.4562 45.0090,-72.3113 45.0037,-72.0964 45.0066,-71.9131 45.0070,-71.5636 45.0138,-71.5059 45.0138,-71.5294 44.9748,-71.4949 44.9123,-71.5567 44.8296,-71.6281 44.7506,-71.6061 44.7077,-71.5677 44.6481,-71.5388 44.5817,-71.6006 44.5533,-71.5746 44.5308,-71.5883 44.4955,-71.6556 44.4504,-71.7146 44.4093,-71.7957 44.3975,-71.8163 44.3563,-71.8698 44.3327,-71.9138 44.3484,-71.9865 44.3386,-72.0346 44.3052,-72.0428 44.2432,-72.0662 44.1930,-72.0360 44.1349,-72.0580 44.0698,-72.1101 44.0017,-72.0937 43.9671,-72.1252 43.9088,-72.1733 43.8682,-72.1994 43.7899,-72.1994 43.7899,-72.2392 43.7384,-72.3010 43.7056,-72.3271 43.6391,-72.3436 43.5893,-72.3793 43.5814,-72.3972 43.5027,-72.3807 43.4988,-72.3999 43.4150,-72.4123 43.3601,-72.3903 43.3591,-72.4081 43.3282,-72.3999 43.2762,-72.4370 43.2342,-72.4493 43.1852,-72.4480 43.1311,-72.4507 43.0679,-72.4438 43.0067,-72.4699 42.9846,-72.5276 42.9645,-72.5331 42.8951,-72.5633 42.8639,-72.5098 42.7863,-72.5166 42.7652,-72.4741 42.7541,-72.4590 42.7289,-73.2761 42.7465,-73.2912 42.8025,-73.2850 42.8357,-73.2678 43.0679,-73.2472 43.5022,-73.2561 43.5615,-73.2939 43.5774,-73.3049 43.6271,-73.3557 43.6271,-73.3976 43.5675,-73.4326 43.5883,-73.4285 43.6351,-73.4079 43.6684,-73.3907 43.7031,-73.3516 43.7701,-73.3928 43.8207,-73.3832 43.8533,-73.3969 43.9033,-73.4086 43.9365,-73.4134 43.9795,-73.4381 44.0427,-73.4141 44.1058,-73.3928 44.1921,-73.3427 44.2393,-73.3186 44.2467,-73.3406 44.3484,-73.3385 44.3690,-73.2946 44.4328,-73.3296 44.5367,-73.3832 44.5919,-73.3770 44.6569,-73.3681 44.7477,-73.3317 44.7857,-73.3324 44.8043,-73.3818 44.8398,-73.3564 44.9040,-73.3392 44.9181,-73.3372 44.9643,-73.3537 44.9799,-73.3447 45.0046,-73.3447 45.0109,-73.3426 45.0104,-73.3427 45.0104))";
@@ -26,7 +27,7 @@ var stateLayer = false;
 var countyLayer = false;
 var townLayer = false;
 var bioPhysicalLayer = false;
-//var kmlGroup = false; //this was global.  made it function scope so it's garbage collected.  gloval not necessary b/c it's used in one function.
+//var kmlGroup = false; //this was global.  made it function scope so it's garbage collected.  global not necessary b/c it's used in one function.
 var testHarness = false;
 
 //for standalone use
@@ -68,15 +69,15 @@ function addMap() {
     
     valMap.addLayer(streets);
 
-    if(layerControl === false) {
-        layerControl = L.control.layers().addTo(valMap);
+    if(basemapLayerControl === false) {
+        basemapLayerControl = L.control.layers().addTo(valMap);
     }
 
-    layerControl.addBaseLayer(streets, "Streets");
-    layerControl.addBaseLayer(light, "Grayscale");
-    layerControl.addBaseLayer(satellite, "Satellite");
+    basemapLayerControl.addBaseLayer(streets, "Streets");
+    basemapLayerControl.addBaseLayer(light, "Grayscale");
+    basemapLayerControl.addBaseLayer(satellite, "Satellite");
 
-    layerControl.setPosition("bottomright");
+    basemapLayerControl.setPosition("bottomright");
 }
 
 /*
@@ -85,20 +86,25 @@ function addMap() {
  */
 function addBoundaries() {
     var kmlGroup = false;
+
+    if (boundaryLayerControl === false) {
+        boundaryLayerControl = L.control.layers().addTo(valMap);
+    } else {
+        console.log('boundaryLayerControl already added.')
+        return;
+    }
+    
+    console.log("addBoundaries (kml)");
     
     stateLayer = omnivore.kml('kml/LineString_VT_State_Boundary.kml');
     countyLayer = omnivore.kml('kml/LineString_VT_County_Boundaries.kml');
     townLayer = omnivore.kml('kml/LineString_VT_Town_Boundaries.kml');
     bioPhysicalLayer = omnivore.kml('kml/LineString_VT_Biophysical_Regions.kml');
 
-    if(layerControl === false) {
-        layerControl = L.control.layers().addTo(valMap);
-    }
-
-    layerControl.addOverlay(stateLayer, "State Boundary");
-    layerControl.addOverlay(countyLayer, "County Boundaries");
-    layerControl.addOverlay(townLayer, "Town Boundaries");
-    layerControl.addOverlay(bioPhysicalLayer, "Bio-physical Boundaries");
+    boundaryLayerControl.addOverlay(stateLayer, "State Boundary");
+    boundaryLayerControl.addOverlay(countyLayer, "County Boundaries");
+    boundaryLayerControl.addOverlay(townLayer, "Town Boundaries");
+    boundaryLayerControl.addOverlay(bioPhysicalLayer, "Bio-physical Boundaries");
     
     kmlGroup = new L.FeatureGroup();
     kmlGroup.addLayer(stateLayer);
@@ -108,6 +114,8 @@ function addBoundaries() {
     
     countyLayer.addTo(valMap);
     bioPhysicalLayer.addTo(valMap);
+
+    boundaryLayerControl.setPosition("bottomright");
 }
 
 /*
@@ -134,7 +142,7 @@ function initValOccCanvas() {
         console.log(`Clear layer '${key}'`);
         cmGroup[key].clearLayers();
         console.log(`Remove control layer for '${key}'`);
-        speciesLayerControl.removeLayer(cmGroup[key]);
+        if (speciesLayerControl) speciesLayerControl.removeLayer(cmGroup[key]);
         delete cmGroup[key];
         delete cmCount[key];
         delete cgColor[key];
@@ -168,6 +176,8 @@ function addValOccCanvas(taxonName=false) {
     var wkt = `&wkt=${vtWKT}`;
     var valUrl = baseUrl + q + fq + pageSize + wkt;
     if(document.getElementById("apiUrlLabel")) {document.getElementById("apiUrlLabel").innerHTML = (valUrl);}
+    
+    //console.log(`addValOccCanvas`, valUrl);
 
     // start a new chain of fetch events
     initXhrRequest(valUrl, taxonName);
@@ -222,6 +232,9 @@ function xhrResults(valXHR, url, taxonName) {
 }
 
 function updateMap(valJsonData, taxonName) {
+    //console.log(`updateMap(${taxonName})`);
+    //console.log(`updateMap - cmGroup:`);
+    //console.dir(cmGroup);
     for (var i = 0; i < valJsonData.length; i++) {
         //filter out records witout lat/lon location
         if (!valJsonData[i].decimalLatitude || !valJsonData[i].decimalLongitude) {
@@ -236,6 +249,11 @@ function updateMap(valJsonData, taxonName) {
 
         var llLoc = L.latLng(valJsonData[i].decimalLatitude, valJsonData[i].decimalLongitude);
 
+        var popup = L.popup({
+            maxHeight: 200,
+            keepInView: true,
+        }).setContent(occurrencePopupInfo(valJsonData[i], cmCount[taxonName]));
+        
         var marker = L.circleMarker(llLoc, {
             renderer: myRenderer,
             radius: cmRadius,
@@ -243,14 +261,18 @@ function updateMap(valJsonData, taxonName) {
             index: cmCount[taxonName],
             occurrence: valJsonData[i].species,
             time: getDateYYYYMMDD(valJsonData[i].eventDate)
-        }).bindPopup(occurrencePopupInfo(valJsonData[i], cmCount[taxonName]));
+        }).bindPopup(popup); //(occurrencePopupInfo(valJsonData[i], cmCount[taxonName]));
         
         cmGroup[taxonName].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
         
         if (testHarness) {
             marker.bindTooltip(`${cmCount[taxonName]}`, {opacity: 0.9});
         } else {
-            marker.bindTooltip(getDateYYYYMMDD(valJsonData[i].eventDate));
+            if (valJsonData[i].eventDate) {
+                marker.bindTooltip(getDateYYYYMMDD(valJsonData[i].eventDate));
+            } else {
+                marker.bindTooltip('No date supplied.');
+            }
         }
     }
     
@@ -289,11 +311,14 @@ function occurrencePopupInfo(occRecord, index) {
             case 'raw_institutionCode':
                 if ('iNaturalist' == occRecord[key]) {
                     info += `<a href="https://www.inaturalist.org/observations/${occRecord.occurrenceID}" target="_blank">iNaturalist Observation ${occRecord.occurrenceID} </a><br/>`;
-                } else if ('BISON' == occRecord[key]) {
+/*                } else if ('BISON' == occRecord[key]) {
                     info += `<a href="https://bison.usgs.gov/api/search.jsonp?params=occurrenceID:${occRecord.occurrenceID}" target="_blank">BISON Observation ${occRecord.occurrenceID}</a><br/>`;
-                } else {
+*/                } else {
                     info += `Institution: ${occRecord[key]}<br/>`;
                 }
+                break;
+            case 'uuid':
+                info += `<a href="https://biocache.vtatlasoflife.org/occurrences/${occRecord[key]}" target="_blank">VAL Data Explorer Occurrence Record </a><br/>`;
                 break;
             case 'decimalLatitude':
                 info += `Lat: ${occRecord[key]}`;
@@ -319,7 +344,7 @@ function occurrencePopupInfo(occRecord, index) {
             case '':
                 info += `: ${occRecord[key]}<br/>`;
                 break;
-            default:
+            default: //un-comment this to list all properties
                 //info += `${key}: ${occRecord[key]}<br/>`;
             }
         });
@@ -335,8 +360,8 @@ function addMarker() {
 //standalone module usage
 function initValStandalone() {
     addMap();
-    //addMarker();
     addMapCallbacks();
+    addBoundaries();
 }
 
 //integrated module usage
@@ -350,7 +375,7 @@ export function getValOccCanvas(map, taxonName) {
         cgColor[taxonName] = cmColors[0];
         cmCount[taxonName] = 0;
         addValOccCanvas(taxonName);
-        if (!layerControl) {addBoundaries();}
+        if (!boundaryLayerControl) {addBoundaries();}
         //if (!sliderControl) {addTimeSlider(taxonName);}
         if (!speciesLayerControl) {
             speciesLayerControl = L.control.layers().addTo(valMap);
@@ -376,10 +401,12 @@ if (document.getElementById("valStandalone")) {
         // Add a listener to handle the 'Get Data' button click
         document.getElementById("getData").addEventListener("click", function() {
             initValOccCanvas();
+            const taxonName = getCanonicalName();
+            cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
             addValOccCanvas();
         });
         
-        // Add a listener to handle the 'Get Data' button click
+        // Add a listener to handle the 'Get Species Info' button click
         document.getElementById("getInfo").addEventListener("click", function() {
             var data = getAllData();
             var info = '';
@@ -411,6 +438,7 @@ if (document.getElementById("valLoadOnOpen")) {
         var speciesStr = urlLoad.substring(urlLoad.lastIndexOf("=")+1);
         console.log(`url-parsed species string: ${speciesStr}`);
         var speciesObj = JSON.parse(speciesStr);
+        console.log('species object:', speciesObj)
     
         initValStandalone();
         valMap.options.minZoom = 8;
@@ -418,7 +446,11 @@ if (document.getElementById("valLoadOnOpen")) {
         //initValOccCanvas();
         //addValOccCanvas('Bombus borealis');
         addBoundaries();
-        getSpeciesListData(speciesObj);
+        if (typeof speciesObj != "object") {
+            alert('Please pass an object literal like [map-page-url]?species={"Turdus migratorius":"#800000"}')
+        } else {
+            getSpeciesListData(speciesObj);
+        }
         
         // Add a listener to handle the 'clear Data' button click
         if (document.getElementById("clearData")) {
@@ -473,6 +505,7 @@ function addMapCallbacks() {
      * It seems to perform OK, but that's a LOT of hits...
      * May need to find another way to handle this.
      */
+    /*
     valMap.on('layeradd', function (event) {
         
         if (stateLayer) {stateLayer.setStyle(function() {return {color: 'purple'};});}
@@ -488,7 +521,8 @@ function addMapCallbacks() {
             }
         });
     });
-
+    */
+    
     valMap.on('zoomend', function () {
         console.log(`Map Zoom: ${valMap.getZoom()}`);
     });
