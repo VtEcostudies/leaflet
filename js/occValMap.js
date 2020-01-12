@@ -44,11 +44,11 @@ function addMap() {
     var attribLarge =  'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
             '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
             'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>';
-            
+
     var attribSmall =  '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>, ' +
             '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
             '© <a href="https://www.mapbox.com/">Mapbox</a>';
-    
+
     var streets = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
         maxZoom: 20,
         attribution: attribSmall,
@@ -60,13 +60,13 @@ function addMap() {
         attribution: attribSmall,
         id: 'mapbox.light'
     });
-    
+
     var satellite = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
         maxZoom: 20,
         attribution: attribSmall,
         id: 'mapbox.satellite'
     });
-    
+
     valMap.addLayer(streets);
 
     if(basemapLayerControl === false) {
@@ -81,7 +81,7 @@ function addMap() {
 }
 
 /*
- * 
+ *
  * https://github.com/mapbox/leaflet-omnivore
  */
 function addBoundaries() {
@@ -93,9 +93,9 @@ function addBoundaries() {
         console.log('boundaryLayerControl already added.')
         return;
     }
-    
-    console.log("addBoundaries (kml)");
-    
+
+    console.log("addBoundaries (kml) ...");
+
     stateLayer = omnivore.kml('kml/LineString_VT_State_Boundary.kml');
     countyLayer = omnivore.kml('kml/LineString_VT_County_Boundaries.kml');
     townLayer = omnivore.kml('kml/LineString_VT_Town_Boundaries.kml');
@@ -105,15 +105,17 @@ function addBoundaries() {
     boundaryLayerControl.addOverlay(countyLayer, "County Boundaries");
     boundaryLayerControl.addOverlay(townLayer, "Town Boundaries");
     boundaryLayerControl.addOverlay(bioPhysicalLayer, "Bio-physical Boundaries");
-    
+
     kmlGroup = new L.FeatureGroup();
     kmlGroup.addLayer(stateLayer);
     kmlGroup.addLayer(countyLayer);
     kmlGroup.addLayer(townLayer);
     kmlGroup.addLayer(bioPhysicalLayer);
-    
+
+    stateLayer.addTo(valMap);
     countyLayer.addTo(valMap);
-    bioPhysicalLayer.addTo(valMap);
+    //bioPhysicalLayer.addTo(valMap);
+    //townLayer.addTo(valMap);
 
     boundaryLayerControl.setPosition("bottomright");
 }
@@ -123,9 +125,9 @@ function addBoundaries() {
  */
 function addTimeSlider(taxonName) {
     var taxonGroup = cmGroup[taxonName];
-    
+
     console.log(`addTimeSlider(${taxonName}) - layer.options: ${Object.keys(taxonGroup)}`);
-    
+
     sliderControl = L.control.sliderControl({position: "bottomleft", layer: taxonGroup, range: true});
     valMap.addControl(sliderControl);
     sliderControl.startSlider();
@@ -159,9 +161,9 @@ function initValOccCanvas() {
  *
 */
 function addValOccCanvas(taxonName=false) {
-    
+
     console.log(`addValOccCanvas(${taxonName})`);
-    
+
     var baseUrl = 'https://biocache-ws.vtatlasoflife.org/occurrences/search'; //'http://vtatlasoflife.org/biocache-service/occurrences/search'; // biocache-service/occurrences/search?q=*:*
     var pageSize = `&pageSize=${xhrRecsPerPage}`;
     if (!taxonName) {taxonName = getCanonicalName();}
@@ -176,7 +178,7 @@ function addValOccCanvas(taxonName=false) {
     var wkt = `&wkt=${vtWKT}`;
     var valUrl = baseUrl + q + fq + pageSize + wkt;
     if(document.getElementById("apiUrlLabel")) {document.getElementById("apiUrlLabel").innerHTML = (valUrl);}
-    
+
     //console.log(`addValOccCanvas`, valUrl);
 
     // start a new chain of fetch events
@@ -185,7 +187,7 @@ function addValOccCanvas(taxonName=false) {
 
 function initXhrRequest(url, taxonName) {
     var valXHR = new XMLHttpRequest();
-    
+
     //console.log(`initXhrRequest(${url})`);
 
     //handle request responses here in this callback
@@ -194,7 +196,7 @@ function initXhrRequest(url, taxonName) {
             xhrResults(this, url, taxonName);
         }
     };
-    
+
     //load the first N records of data, which initiates subsequent page loads
     loadPage(valXHR, url, taxonName, 0);
 }
@@ -209,7 +211,7 @@ function loadPage(valXHR, url, taxonName, startIndex) {
      */
     //valXHR.responseType = 'json';  //looks like you need to add this after the open, and use 'reponse' above, not 'responseText'
     //valXHR.setRequestHeader("Content-type", "application/json");
-    valXHR.send();    
+    valXHR.send();
 }
 
 function xhrResults(valXHR, url, taxonName) {
@@ -241,10 +243,10 @@ function updateMap(valJsonData, taxonName) {
             console.log(`WARNING: Occurrence Record without Lat/Lon values: ${valJsonData[i]}`);
             return;
         }
-        
+
         cmCount[taxonName]++;
         cmCount['all']++;
-        
+
         //console.log(`${taxonName} | ${cmCount[taxonName]} | lat: ${valJsonData[i].decimalLatitude} | lon: ${valJsonData[i].decimalLongitude}`);
 
         var llLoc = L.latLng(valJsonData[i].decimalLatitude, valJsonData[i].decimalLongitude);
@@ -253,7 +255,7 @@ function updateMap(valJsonData, taxonName) {
             maxHeight: 200,
             keepInView: true,
         }).setContent(occurrencePopupInfo(valJsonData[i], cmCount[taxonName]));
-        
+
         var marker = L.circleMarker(llLoc, {
             renderer: myRenderer,
             radius: cmRadius,
@@ -262,9 +264,9 @@ function updateMap(valJsonData, taxonName) {
             occurrence: valJsonData[i].species,
             time: getDateYYYYMMDD(valJsonData[i].eventDate)
         }).bindPopup(popup); //(occurrencePopupInfo(valJsonData[i], cmCount[taxonName]));
-        
+
         cmGroup[taxonName].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
-        
+
         if (testHarness) {
             marker.bindTooltip(`${cmCount[taxonName]}`, {opacity: 0.9});
         } else {
@@ -275,7 +277,7 @@ function updateMap(valJsonData, taxonName) {
             }
         }
     }
-    
+
     if (document.getElementById("jsonResults")) {
         document.getElementById("jsonResults").innerHTML += ` | records mapped: ${cmCount['all']}`;
     }
@@ -290,22 +292,22 @@ function updateMap(valJsonData, taxonName) {
 function getDateYYYYMMDD(msecs) {
 
     var m = moment.utc(msecs);
-    
+
     return m.format('YYYY-MM-DD');
 }
 
 function getDateMMMMDoYYYY(msecs) {
 
     var m = moment.utc(msecs);
-    
+
     return m.format('MMMM Do YYYY');
 }
 
 function occurrencePopupInfo(occRecord, index) {
     var info = '';
-    
+
     if (testHarness) {info += `Map Index: ${index}<br/>`;}
-    
+
     Object.keys(occRecord).forEach(function(key) {
         switch(key) {
             case 'raw_institutionCode':
@@ -348,8 +350,8 @@ function occurrencePopupInfo(occRecord, index) {
                 //info += `${key}: ${occRecord[key]}<br/>`;
             }
         });
-    
-    return info;    
+
+    return info;
 }
 
 function addMarker() {
@@ -395,9 +397,9 @@ export function getValOccCanvas(map, taxonName) {
  */
 if (document.getElementById("valStandalone")) {
     window.addEventListener("load", function() {
-        
+
         initValStandalone();
-        
+
         // Add a listener to handle the 'Get Data' button click
         document.getElementById("getData").addEventListener("click", function() {
             initValOccCanvas();
@@ -405,7 +407,7 @@ if (document.getElementById("valStandalone")) {
             cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
             addValOccCanvas();
         });
-        
+
         // Add a listener to handle the 'Get Species Info' button click
         document.getElementById("getInfo").addEventListener("click", function() {
             var data = getAllData();
@@ -426,7 +428,7 @@ if (document.getElementById("valStandalone")) {
 }
 /*
  * Minimal (map-only) standalone use
- * 
+ *
  * Requires html element where id="valLoadOnOpen"
  *
  */
@@ -439,7 +441,7 @@ if (document.getElementById("valLoadOnOpen")) {
         console.log(`url-parsed species string: ${speciesStr}`);
         var speciesObj = JSON.parse(speciesStr);
         console.log('species object:', speciesObj)
-    
+
         initValStandalone();
         valMap.options.minZoom = 8;
         valMap.options.maxZoom = 17;
@@ -451,14 +453,14 @@ if (document.getElementById("valLoadOnOpen")) {
         } else {
             getSpeciesListData(speciesObj);
         }
-        
+
         // Add a listener to handle the 'clear Data' button click
         if (document.getElementById("clearData")) {
             document.getElementById("clearData").addEventListener("click", function() {
                 initValOccCanvas();
             });
         }
-        
+
         // Add a listener to handle the 'Get Data' button click
         if (document.getElementById("getData")) {
             document.getElementById("getData").addEventListener("click", function() {
@@ -470,7 +472,7 @@ if (document.getElementById("valLoadOnOpen")) {
 
 /*
  * Add multiple species to map, either passed as an argument or loaded from imported .js file (see top of this file)
- * 
+ *
  * argSpecies or speciesList must be of the form {"species name": "color", "species name": "color", ...}, and the
  * JSON values must be in double quotes.
  */
@@ -482,11 +484,11 @@ function getSpeciesListData(argSpecies = false) {
         speciesLayerControl = L.control.layers().addTo(valMap);
         speciesLayerControl.setPosition("bottomright");
     }
-    
+
     if (!argSpecies) {
         argSpecies = speciesList;
     }
-    
+
     Object.keys(argSpecies).forEach(function(taxonName) {
         cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
         cgColor[taxonName] = argSpecies[taxonName]; //define circleMarker color for each species mapped
@@ -501,18 +503,19 @@ function getSpeciesListData(argSpecies = false) {
 
 function addMapCallbacks() {
     /*
-     * This is event is triggered for each 'layeradd', which in our case is for each circleMarker.
+     * This event is triggered for each 'layeradd', which in our case is for each circleMarker.
      * It seems to perform OK, but that's a LOT of hits...
      * May need to find another way to handle this.
      */
-    /*
     valMap.on('layeradd', function (event) {
-        
-        if (stateLayer) {stateLayer.setStyle(function() {return {color: 'purple'};});}
-        if (countyLayer) {countyLayer.setStyle(function() {return {color: 'grey'};});}
-        if (townLayer) {townLayer.setStyle(function() {return {color: 'brown'};});}
-        if (bioPhysicalLayer) {bioPhysicalLayer.setStyle(function() {return {color: '#373737'};});}
-        
+
+        console.log('layeradd event:', event);
+
+        if (stateLayer) {stateLayer.setStyle(function() {return {color: 'purple', weight:1};});}
+        if (countyLayer) {countyLayer.setStyle(function() {return {color: 'grey', weight:1};});}
+        if (townLayer) {townLayer.setStyle(function() {return {color: 'brown', weight:1};});}
+        if (bioPhysicalLayer) {bioPhysicalLayer.setStyle(function() {return {color: '#373737', weight:1};});}
+/*
         Object.keys(cmGroup).forEach(function(taxonName) {
             var idTaxonName = taxonName.split(' ').join('_');
             //console.log(`valMap.overlayadd() - ${idTaxonName} - cmGroup[${taxonName}]`);
@@ -520,9 +523,9 @@ function addMapCallbacks() {
                 document.getElementById(idTaxonName).innerHTML = `${taxonName} (${cmCount[taxonName]})`;
             }
         });
+*/
     });
-    */
-    
+
     valMap.on('zoomend', function () {
         console.log(`Map Zoom: ${valMap.getZoom()}`);
     });
@@ -532,7 +535,7 @@ function addMapCallbacks() {
 
 }
 
-/* 
+/*
  * Test the map by counting the markers for a taxonName.  This depends upon adding custom
  * options to each marker called 'index' and 'occurrence'.
  * - Count the markers
