@@ -67,15 +67,46 @@ function addMap() {
         id: 'mapbox.satellite'
     });
 
+    var esriWorld = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        id: 'esri.world ',
+        //name: 'ESRI Imagery',
+        //zIndex: 0,
+        //maxNativeZoom: 20,
+        maxZoom: 20,
+        attribution: 'Tiles &copy; Esri' // &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
+      });
+
+    var esriTopo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+        id: 'esri.topo',
+        //name: 'ESRI Topo Map',
+        //zIndex: 0,
+        //maxNativeZoom: 20,
+        maxZoom: 20,
+        attribution: 'Tiles &copy; Esri' // &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
+      });
+
+    var openTopo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        id: 'open.topo',
+        //name: 'Open Topo Map',
+        //zIndex: 0,
+        maxZoom: 17,
+        attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
+      });
+
     valMap.addLayer(streets);
 
     if(basemapLayerControl === false) {
         basemapLayerControl = L.control.layers().addTo(valMap);
     }
 
-    basemapLayerControl.addBaseLayer(streets, "Streets");
-    basemapLayerControl.addBaseLayer(light, "Grayscale");
-    basemapLayerControl.addBaseLayer(satellite, "Satellite");
+    basemapLayerControl.addBaseLayer(streets, "Mapbox Streets");
+    basemapLayerControl.addBaseLayer(light, "Mapbox Grayscale");
+    basemapLayerControl.addBaseLayer(satellite, "Mapbox Satellite");
+    basemapLayerControl.addBaseLayer(esriWorld, "ESRI Imagery");
+    basemapLayerControl.addBaseLayer(esriTopo, "ESRI Topo Map");
+    basemapLayerControl.addBaseLayer(openTopo, "Open Topo Map");
+
+    console.log('done adding basemaps');
 
     basemapLayerControl.setPosition("bottomright");
 }
