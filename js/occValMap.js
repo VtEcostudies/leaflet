@@ -95,7 +95,7 @@ function addBoundaries() {
     }
 
     console.log("addBoundaries (kml) ...");
-
+/*
     stateLayer = omnivore.kml('kml/LineString_VT_State_Boundary.kml');
     countyLayer = omnivore.kml('kml/LineString_VT_County_Boundaries.kml');
     townLayer = omnivore.kml('kml/LineString_VT_Town_Boundaries.kml');
@@ -106,18 +106,40 @@ function addBoundaries() {
     boundaryLayerControl.addOverlay(townLayer, "Town Boundaries");
     boundaryLayerControl.addOverlay(bioPhysicalLayer, "Bio-physical Boundaries");
 
-    kmlGroup = new L.FeatureGroup();
+    kmlGroup = new L.FeatureGroup()
     kmlGroup.addLayer(stateLayer);
     kmlGroup.addLayer(countyLayer);
     kmlGroup.addLayer(townLayer);
     kmlGroup.addLayer(bioPhysicalLayer);
 
-    stateLayer.addTo(valMap);
-    countyLayer.addTo(valMap);
+    //stateLayer.addTo(valMap);
+    //countyLayer.addTo(valMap);
     //bioPhysicalLayer.addTo(valMap);
     //townLayer.addTo(valMap);
-
+*/
     boundaryLayerControl.setPosition("bottomright");
+
+    //these will fail to work without warning. colors must be valid or the feature is blank.
+    var stateGroup = L.geoJSON(null, {style: getStateStyle});
+    function getStateStyle(feature) {return {color: 'purple', weight: 1};}
+    var countyGroup = L.geoJSON(null, {style: getCountyStyle});
+    function getCountyStyle(feature) {return {color: 'grey', weight: 1};}
+    var townGroup = L.geoJSON(null, {style: getTownStyle});
+    function getTownStyle(feature) {return {color: 'brown', weight: 1};}
+    var bioPhysicalGroup = L.geoJSON(null, {style: getBioPhysicalStyle});
+    function getBioPhysicalStyle(feature) {return {color: '#373737', weight: 1};}
+
+    stateLayer = omnivore.kml('kml/LineString_VT_State_Boundary.kml', null, stateGroup);
+    countyLayer = omnivore.kml('kml/LineString_VT_County_Boundaries.kml', null, countyGroup);
+    townLayer = omnivore.kml('kml/LineString_VT_Town_Boundaries.kml', null, townGroup);
+    bioPhysicalLayer = omnivore.kml('kml/LineString_VT_Biophysical_Regions.kml', null, bioPhysicalGroup);
+
+    boundaryLayerControl.addOverlay(stateLayer, "State Boundary");
+    boundaryLayerControl.addOverlay(countyLayer, "County Boundaries");
+    boundaryLayerControl.addOverlay(townLayer, "Town Boundaries");
+    boundaryLayerControl.addOverlay(bioPhysicalLayer, "Bio-physical Boundaries");
+
+    countyLayer.addTo(valMap);
 }
 
 /*
@@ -363,7 +385,7 @@ function addMarker() {
 function initValStandalone() {
     addMap();
     addMapCallbacks();
-    addBoundaries();
+    if (!boundaryLayerControl) {addBoundaries();}
 }
 
 //integrated module usage
@@ -439,17 +461,23 @@ if (document.getElementById("valLoadOnOpen")) {
         urlLoad = decodeURI(urlLoad);
         var speciesStr = urlLoad.substring(urlLoad.lastIndexOf("=")+1);
         console.log(`url-parsed species string: ${speciesStr}`);
-        var speciesObj = JSON.parse(speciesStr);
-        console.log('species object:', speciesObj)
+        var speciesObj = {};
+        try {
+          speciesObj = JSON.parse(speciesStr);
+          console.log('species object:', speciesObj)
+        } catch(error) {
+          console.log('ERROR parsing http arugment', speciesStr, 'as JSON:', error);
+          alert('Please pass species as object literal like [map-page-url]?species={"Turdus migratorius":"#800000"}');
+        }
 
         initValStandalone();
         valMap.options.minZoom = 8;
         valMap.options.maxZoom = 17;
         //initValOccCanvas();
         //addValOccCanvas('Bombus borealis');
-        addBoundaries();
+        if (!boundaryLayerControl) {addBoundaries();}
         if (typeof speciesObj != "object") {
-            alert('Please pass an object literal like [map-page-url]?species={"Turdus migratorius":"#800000"}')
+            alert('Please pass an object literal like [map-page-url]?species={"Turdus migratorius":"#800000"}');
         } else {
             getSpeciesListData(speciesObj);
         }
@@ -507,25 +535,31 @@ function addMapCallbacks() {
      * It seems to perform OK, but that's a LOT of hits...
      * May need to find another way to handle this.
      */
+
+/*
     valMap.on('layeradd', function (event) {
 
-        console.log('layeradd event:', event);
+        console.log('layeradd event.target:', event.target);
+        console.log('layeradd event.type:', event.type);
+        console.log('layeradd event.layer:', event.layer);
 
         if (stateLayer) {stateLayer.setStyle(function() {return {color: 'purple', weight:1};});}
         if (countyLayer) {countyLayer.setStyle(function() {return {color: 'grey', weight:1};});}
         if (townLayer) {townLayer.setStyle(function() {return {color: 'brown', weight:1};});}
         if (bioPhysicalLayer) {bioPhysicalLayer.setStyle(function() {return {color: '#373737', weight:1};});}
+      });
+/*
 /*
         Object.keys(cmGroup).forEach(function(taxonName) {
             var idTaxonName = taxonName.split(' ').join('_');
-            //console.log(`valMap.overlayadd() - ${idTaxonName} - cmGroup[${taxonName}]`);
+            console.log(`valMap.overlayadd() - ${idTaxonName} - cmGroup[${taxonName}]`);
             if (document.getElementById(idTaxonName)) {
                 document.getElementById(idTaxonName).innerHTML = `${taxonName} (${cmCount[taxonName]})`;
             }
         });
-*/
-    });
 
+    });
+*/
     valMap.on('zoomend', function () {
         console.log(`Map Zoom: ${valMap.getZoom()}`);
     });
