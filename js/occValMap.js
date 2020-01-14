@@ -12,6 +12,7 @@ var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
 var vtAltCtr = [43.858297, -72.446594]; //VT border center for the speciespage view, where px bounds are small and map is zoomed to fit
 var cmGroup = {}; //object of layerGroups of different species' markers grouped into layers
 var cmCount = {}; //a global counter for cmLayer array-objects across mutiple species
+var cmTotal = {}; //a global total for cmLayer counts across species
 var cgColor = {}; //object of colors for separate species layers
 var cmColors = {0:"#800000",1:"green",2:"blue",3:"yellow",4:"orange",5:"purple",6:"cyan",7:"grey"};
 var cmRadius = 4;
@@ -21,7 +22,8 @@ var boundaryLayerControl = false;
 var speciesLayerControl = false;
 var sliderControl = false;
 var myRenderer = L.canvas({ padding: 0.5 }); //make global so we can clear the canvas before updates...
-var xhrRecsPerPage = 500; //the number of records to load per ajax request.  more is faster.
+var xhrRecsPerPage = 1000; //the number of records to load per ajax request.  more is faster.
+var totalRecords = 0;
 var vtWKT = "POLYGON((-73.3427 45.0104,-73.1827 45.0134,-72.7432 45.0153,-72.6100 45.0134,-72.5551 45.0075,-72.4562 45.0090,-72.3113 45.0037,-72.0964 45.0066,-71.9131 45.0070,-71.5636 45.0138,-71.5059 45.0138,-71.5294 44.9748,-71.4949 44.9123,-71.5567 44.8296,-71.6281 44.7506,-71.6061 44.7077,-71.5677 44.6481,-71.5388 44.5817,-71.6006 44.5533,-71.5746 44.5308,-71.5883 44.4955,-71.6556 44.4504,-71.7146 44.4093,-71.7957 44.3975,-71.8163 44.3563,-71.8698 44.3327,-71.9138 44.3484,-71.9865 44.3386,-72.0346 44.3052,-72.0428 44.2432,-72.0662 44.1930,-72.0360 44.1349,-72.0580 44.0698,-72.1101 44.0017,-72.0937 43.9671,-72.1252 43.9088,-72.1733 43.8682,-72.1994 43.7899,-72.1994 43.7899,-72.2392 43.7384,-72.3010 43.7056,-72.3271 43.6391,-72.3436 43.5893,-72.3793 43.5814,-72.3972 43.5027,-72.3807 43.4988,-72.3999 43.4150,-72.4123 43.3601,-72.3903 43.3591,-72.4081 43.3282,-72.3999 43.2762,-72.4370 43.2342,-72.4493 43.1852,-72.4480 43.1311,-72.4507 43.0679,-72.4438 43.0067,-72.4699 42.9846,-72.5276 42.9645,-72.5331 42.8951,-72.5633 42.8639,-72.5098 42.7863,-72.5166 42.7652,-72.4741 42.7541,-72.4590 42.7289,-73.2761 42.7465,-73.2912 42.8025,-73.2850 42.8357,-73.2678 43.0679,-73.2472 43.5022,-73.2561 43.5615,-73.2939 43.5774,-73.3049 43.6271,-73.3557 43.6271,-73.3976 43.5675,-73.4326 43.5883,-73.4285 43.6351,-73.4079 43.6684,-73.3907 43.7031,-73.3516 43.7701,-73.3928 43.8207,-73.3832 43.8533,-73.3969 43.9033,-73.4086 43.9365,-73.4134 43.9795,-73.4381 44.0427,-73.4141 44.1058,-73.3928 44.1921,-73.3427 44.2393,-73.3186 44.2467,-73.3406 44.3484,-73.3385 44.3690,-73.2946 44.4328,-73.3296 44.5367,-73.3832 44.5919,-73.3770 44.6569,-73.3681 44.7477,-73.3317 44.7857,-73.3324 44.8043,-73.3818 44.8398,-73.3564 44.9040,-73.3392 44.9181,-73.3372 44.9643,-73.3537 44.9799,-73.3447 45.0046,-73.3447 45.0109,-73.3426 45.0104,-73.3427 45.0104))";
 var stateLayer = false;
 var countyLayer = false;
@@ -69,26 +71,18 @@ function addMap() {
 
     var esriWorld = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         id: 'esri.world ',
-        //name: 'ESRI Imagery',
-        //zIndex: 0,
-        //maxNativeZoom: 20,
         maxZoom: 20,
         attribution: 'Tiles &copy; Esri' // &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
       });
 
     var esriTopo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
         id: 'esri.topo',
-        //name: 'ESRI Topo Map',
-        //zIndex: 0,
-        //maxNativeZoom: 20,
         maxZoom: 20,
         attribution: 'Tiles &copy; Esri' // &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
       });
 
     var openTopo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
         id: 'open.topo',
-        //name: 'Open Topo Map',
-        //zIndex: 0,
         maxZoom: 17,
         attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
       });
@@ -200,6 +194,7 @@ function initValOccCanvas() {
         if (speciesLayerControl) speciesLayerControl.removeLayer(cmGroup[key]);
         delete cmGroup[key];
         delete cmCount[key];
+        delete cmTotal[key];
         delete cgColor[key];
     });
     console.log(`Remove species layer control from map`);
@@ -269,7 +264,7 @@ function loadPage(valXHR, url, taxonName, startIndex) {
 
 function xhrResults(valXHR, url, taxonName) {
     var jsonRes = JSON.parse(valXHR.response);
-    var totr = jsonRes.totalRecords;
+    var totr = jsonRes.totalRecords; cmTotal[taxonName] = jsonRes.totalRecords;
     var perp = jsonRes.pageSize;
     var startIdx = jsonRes.startIndex;
     var netr = startIdx + perp;
@@ -324,15 +319,21 @@ function updateMap(valJsonData, taxonName) {
             marker.bindTooltip(`${cmCount[taxonName]}`, {opacity: 0.9});
         } else {
             if (valJsonData[i].eventDate) {
-                marker.bindTooltip(getDateYYYYMMDD(valJsonData[i].eventDate));
+                marker.bindTooltip(`${taxonName}<br>${getDateYYYYMMDD(valJsonData[i].eventDate)}`);
             } else {
-                marker.bindTooltip('No date supplied.');
+                marker.bindTooltip(`${taxonName}<br>No date supplied.`);
             }
         }
     }
 
     if (document.getElementById("jsonResults")) {
         document.getElementById("jsonResults").innerHTML += ` | records mapped: ${cmCount['all']}`;
+    }
+
+    var idTaxonName = taxonName.split(' ').join('_');
+
+    if (document.getElementById(idTaxonName)) {
+        document.getElementById(idTaxonName).innerHTML = `${taxonName} (${cmCount[taxonName]}/${cmTotal[taxonName]})`;
     }
 }
 
@@ -429,6 +430,7 @@ export function getValOccCanvas(map, taxonName) {
         cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
         cgColor[taxonName] = cmColors[0];
         cmCount[taxonName] = 0;
+        cmTotal[taxonName] = 0;
         addValOccCanvas(taxonName);
         if (!boundaryLayerControl) {addBoundaries();}
         //if (!sliderControl) {addTimeSlider(taxonName);}
@@ -552,6 +554,7 @@ function getSpeciesListData(argSpecies = false) {
         cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
         cgColor[taxonName] = argSpecies[taxonName]; //define circleMarker color for each species mapped
         cmCount[taxonName] = 0;
+        cmTotal[taxonName] = 0;
         console.log(`Add species group ${taxonName} with color ${cgColor[taxonName]}`);
         addValOccCanvas(taxonName);
         var idTaxonName = taxonName.split(' ').join('_');
@@ -563,33 +566,10 @@ function getSpeciesListData(argSpecies = false) {
 function addMapCallbacks() {
     /*
      * This event is triggered for each 'layeradd', which in our case is for each circleMarker.
-     * It seems to perform OK, but that's a LOT of hits...
-     * May need to find another way to handle this.
+     * Doing anything here has major performance hit.
      */
-
 /*
     valMap.on('layeradd', function (event) {
-
-        console.log('layeradd event.target:', event.target);
-        console.log('layeradd event.type:', event.type);
-        console.log('layeradd event.layer:', event.layer);
-
-        if (stateLayer) {stateLayer.setStyle(function() {return {color: 'purple', weight:1};});}
-        if (countyLayer) {countyLayer.setStyle(function() {return {color: 'grey', weight:1};});}
-        if (townLayer) {townLayer.setStyle(function() {return {color: 'brown', weight:1};});}
-        if (bioPhysicalLayer) {bioPhysicalLayer.setStyle(function() {return {color: '#373737', weight:1};});}
-      });
-/*
-/*
-        Object.keys(cmGroup).forEach(function(taxonName) {
-            var idTaxonName = taxonName.split(' ').join('_');
-            console.log(`valMap.overlayadd() - ${idTaxonName} - cmGroup[${taxonName}]`);
-            if (document.getElementById(idTaxonName)) {
-                document.getElementById(idTaxonName).innerHTML = `${taxonName} (${cmCount[taxonName]})`;
-            }
-        });
-
-    });
 */
     valMap.on('zoomend', function () {
         console.log(`Map Zoom: ${valMap.getZoom()}`);
