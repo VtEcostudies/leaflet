@@ -252,8 +252,8 @@ function initXhrRequest(url, taxonName) {
 function loadPage(valXHR, url, taxonName, startIndex) {
     valXHR.open("GET", url+`&startIndex=${startIndex}`, true);
     /*
-     * NOTE: the VAL ala-demo site does not respond with a "Content-type" header.  We only get an "x-requested-with" pre-flight header
-     * response.  This means we can't send a *request* having this header.
+     * NOTE: the VAL ALA site does not respond with a "Content-type" header.  We only get an
+     * "x-requested-with" pre-flight header response.  This means we can't send a *request* having this header.
      * The two lines beloew, taken from the iNat code, asked the server to send us JSON.
      * For VAL, we let the reponse return as text and then we JSON.parse(response).
      */
