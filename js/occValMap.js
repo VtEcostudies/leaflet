@@ -270,8 +270,8 @@ function onEachFeature(feature, layer) {
           if (feature.properties.BLOCKNAME && feature.properties.BLOCK_TYPE=='PRIORITY') {
             var name = feature.properties.BLOCKNAME;
             var link = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
-            links = `<a href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
-            links += `<a href="https://val.vtecostudies.org/survey/ladybeetle/signup?surveyblock=${link}">Signup for ${name}</a>`
+            links = `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
+            links += `<a target="_blank" href="https://val.vtecostudies.org/survey/ladybeetle/signup?surveyblock=${link}">Signup for ${name}</a>`
           }
         }
         if (props) {
