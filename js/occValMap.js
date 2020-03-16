@@ -10,12 +10,14 @@ import {colorsList, speciesList} from "./mapTheseSpecies.js";
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
 var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
 var vtAltCtr = [43.858297, -72.446594]; //VT border center for the speciespage view, where px bounds are small and map is zoomed to fit
+var zoomLevel = 8;
+var zoomCenter = vtCenter;
 var cmGroup = {}; //object of layerGroups of different species' markers grouped into layers
 var cmCount = {}; //a global counter for cmLayer array-objects across mutiple species
 var cmTotal = {}; //a global total for cmLayer counts across species
 var cgColor = {}; //object of colors for separate species layers
 var cmColors = {0:"#800000",1:"green",2:"blue",3:"yellow",4:"orange",5:"purple",6:"cyan",7:"grey"};
-var cmRadius = 4;
+var cmRadius = zoomLevel/2;
 var valMap = {};
 var basemapLayerControl = false;
 var boundaryLayerControl = false;
@@ -29,8 +31,10 @@ var stateLayer = false;
 var countyLayer = false;
 var townLayer = false;
 var bioPhysicalLayer = false;
+var testLayer = false;
 //var kmlGroup = false; //this was global.  made it function scope so it's garbage collected.  global not necessary b/c it's used in one function.
 var testHarness = false;
+var testData = true;
 
 //for standalone use
 function addMap() {
@@ -103,14 +107,21 @@ function addMap() {
     console.log('done adding basemaps');
 
     basemapLayerControl.setPosition("bottomright");
+
+    valMap.on("zoomend", e => onZoomEnd(e));
+    valMap.on("overlayadd", e => MapOverlayAdd(e));
+}
+
+function onZoomEnd(e) {
+  zoomLevel = valMap.getZoom();
+  zoomCenter = valMap.getCenter();
+  SetEachPointRadius();
 }
 
 /*
- *
  * https://github.com/mapbox/leaflet-omnivore
  */
-function addBoundaries() {
-    var kmlGroup = false;
+async function addBoundaries() {
 
     if (boundaryLayerControl === false) {
         boundaryLayerControl = L.control.layers().addTo(valMap);
@@ -118,9 +129,11 @@ function addBoundaries() {
         console.log('boundaryLayerControl already added.')
         return;
     }
+    boundaryLayerControl.setPosition("bottomright");
 
-    console.log("addBoundaries (kml) ...");
 /*
+    console.log("addBoundaries (kml) ...");
+
     stateLayer = omnivore.kml('kml/LineString_VT_State_Boundary.kml');
     countyLayer = omnivore.kml('kml/LineString_VT_County_Boundaries.kml');
     townLayer = omnivore.kml('kml/LineString_VT_Town_Boundaries.kml');
@@ -142,8 +155,7 @@ function addBoundaries() {
     //bioPhysicalLayer.addTo(valMap);
     //townLayer.addTo(valMap);
 */
-    boundaryLayerControl.setPosition("bottomright");
-
+/*
     //these will fail to work without warning. colors must be valid or the feature is blank.
     var stateGroup = L.geoJSON(null, {style: getStateStyle});
     function getStateStyle(feature) {return {color: 'purple', weight: 1};}
@@ -153,6 +165,9 @@ function addBoundaries() {
     function getTownStyle(feature) {return {color: 'brown', weight: 1};}
     var bioPhysicalGroup = L.geoJSON(null, {style: getBioPhysicalStyle});
     function getBioPhysicalStyle(feature) {return {color: '#373737', weight: 1};}
+
+    var prioritySurveyGroup = L.geoJSON(null, {style: getprioritySurveyStyle});
+    function getprioritySurveyStyle(feature) {return {color: '#373737', weight: 1};}
 
     stateLayer = omnivore.kml('kml/LineString_VT_State_Boundary.kml', null, stateGroup);
     countyLayer = omnivore.kml('kml/LineString_VT_County_Boundaries.kml', null, countyGroup);
@@ -165,6 +180,105 @@ function addBoundaries() {
     boundaryLayerControl.addOverlay(bioPhysicalLayer, "Bio-physical Boundaries");
 
     countyLayer.addTo(valMap);
+*/
+    console.log("addBoundaries (geoJson) ...");
+/*
+    addGeoJsonLayer('geojson/LineString_VT_State_Boundary.geojson', "State Boundary", boundaryLayerControl);
+    addGeoJsonLayer('geojson/LineString_VT_County_Boundaries.geojson', "County Boundaries", boundaryLayerControl);
+    addGeoJsonLayer('geojson/LineString_VT_Town_Boundaries.geojson', "Town Boundaries", boundaryLayerControl);
+    addGeoJsonLayer('geojson/LineString_VT_Biophysical_Regions.geojson', "Biophysical Regions", boundaryLayerControl);
+*/
+    addGeoJsonLayer('geojson/Polygon_VT_State_Boundary.geojson', "State Boundary", boundaryLayerControl);
+    addGeoJsonLayer('geojson/Polygon_VT_County_Boundaries.geojson', "County Area", boundaryLayerControl, true);
+    addGeoJsonLayer('geojson/Polygon_VT_Town_Boundaries.geojson', "Town Boundaries", boundaryLayerControl);
+    addGeoJsonLayer('geojson/Polygon_VT_Biophysical_Regions.geojson', "Biophysical Regions", boundaryLayerControl);
+}
+
+/*
+  Fired when an overlay is selected through a layer control.
+  We send all overlay to the back so that point markers remain
+  clickable, in the foreground.
+*/
+function MapOverlayAdd(e) {
+  console.log('MapOverlayAdd', e);
+  e.layer.bringToBack();
+}
+
+function addGeoJsonLayer(file="test.geojson", layerName="Test", layerControl=null, addToMap=false) {
+  var layer = null;
+  return new Promise(async (resolve, reject) => {
+    loadGeoJSON(file, (data) => {
+      layer = L.geoJSON(data, {
+          onEachFeature: onEachFeature,
+          style: onStyle
+      });
+      if (addToMap) {layer.addTo(valMap); layer.bringToBack();}
+      if (layerControl) {layerControl.addOverlay(layer, layerName);}
+      resolve(layer);
+    });
+  });
+}
+
+function loadGeoJSON(file, callback) {
+  loadFile(file, (res) => {
+    callback(JSON.parse(res));
+  })
+}
+
+function loadFile(file, callback) {
+    var xobj = new XMLHttpRequest();
+        xobj.overrideMimeType("application/json");
+    xobj.open('GET', file, true); // Replace 'my_data' with the path to your file
+    xobj.onreadystatechange = function () {
+          if (xobj.readyState == 4 && xobj.status == "200") {
+            // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
+            callback(xobj.responseText);
+          } else {
+            console.log(`loadFile | status: ${xobj.status} | readyState: ${xobj.readyState}`);
+          }
+    };
+    xobj.send(null);
+}
+
+function onEachFeature(feature, layer) {
+    layer.on('click', function (e) {
+      /*
+      if (feature.properties && feature.properties.CNTYNAME) {
+        alert(feature.properties.CNTYNAME);
+      }
+      */
+    });
+
+    // does this feature have a property named popupContent?
+    /*
+    if (feature.properties && feature.properties.popupContent) {
+        layer.bindPopup(feature.properties.popupContent);
+    }
+    */
+    if (feature.properties) {
+        var obj = feature.properties;
+        var props = '';
+        for (var key in obj) {
+          switch(key.substr(key.length - 4)) {
+            case 'NAME':
+              props += `${key}: ${obj[key]}<br>`;
+              break;
+            case 'EOID':
+              props += `${key}: ${obj[key]}<br>`;
+              break;
+          }
+        }
+        if (props) {layer.bindPopup(props);}
+    }
+}
+
+function onStyle(feature) {
+    switch (feature.properties.type) {
+        case 'marker': return {color: "black"};
+        case 'polygon': return {color: "yellow"};
+        case 'linestring': return {color: "red"};
+        default: return {color:"black", weight:1, fillOpacity:0.1, fillColor:"blue"};
+    }
 }
 
 /*
@@ -187,7 +301,7 @@ function initValOccCanvas() {
     //console.log(`initValOccCanvas()`);
     cmCount['all'] = 0;
     //remove all circleMarkers from each group by clearing the layer
-    Object.keys(cmGroup).forEach(function(key){
+    Object.keys(cmGroup).forEach(function(key) {
         console.log(`Clear layer '${key}'`);
         cmGroup[key].clearLayers();
         console.log(`Remove control layer for '${key}'`);
@@ -200,6 +314,13 @@ function initValOccCanvas() {
     console.log(`Remove species layer control from map`);
     if (speciesLayerControl) {valMap.removeControl(speciesLayerControl);}
     speciesLayerControl = false;
+}
+
+function getTestData(file, taxonName) {
+  //load test data
+  loadGeoJSON(file, (data) => {
+    updateMap(data.occurrences, taxonName);
+  });
 }
 
 /*
@@ -305,13 +426,18 @@ function updateMap(valJsonData, taxonName) {
         }).setContent(occurrencePopupInfo(valJsonData[i], cmCount[taxonName]));
 
         var marker = L.circleMarker(llLoc, {
-            renderer: myRenderer,
+            //renderer: myRenderer, //using this puts markers behind overlays. do we need it? We do not.
+            fillColor: cgColor[taxonName], //interior color
+            fillOpacity: 0.5, //values from 0 to 1
+            color: "black", //border color
+            weight: 1, //border thickness
             radius: cmRadius,
-            color: cgColor[taxonName],
             index: cmCount[taxonName],
             occurrence: valJsonData[i].species,
             time: getDateYYYYMMDD(valJsonData[i].eventDate)
         }).bindPopup(popup); //(occurrencePopupInfo(valJsonData[i], cmCount[taxonName]));
+
+        marker.bringToFront(); //this is not necessary, currently. can't hurt though.
 
         cmGroup[taxonName].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
 
@@ -408,6 +534,17 @@ function occurrencePopupInfo(occRecord, index) {
     return info;
 }
 
+//iterate through all plotted pools in each featureGroup and alter each radius
+function SetEachPointRadius(radius = cmRadius) {
+  cmRadius = Math.floor(zoomLevel/2);
+  Object.keys(cmGroup).forEach((taxonName) => {
+    cmGroup[taxonName].eachLayer((cmLayer) => {
+      cmLayer.setRadius(radius);
+      cmLayer.bringToFront(); //this works, but only when this function is called
+    });
+  });
+}
+
 function addMarker() {
     var marker = L.marker([43.6962, -72.3197]).addTo(valMap);
     marker.bindPopup("<b>Vermont Center for Ecostudies</b>");
@@ -458,9 +595,16 @@ if (document.getElementById("valStandalone")) {
         // Add a listener to handle the 'Get Data' button click
         document.getElementById("getData").addEventListener("click", function() {
             initValOccCanvas();
-            const taxonName = getCanonicalName();
-            cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-            addValOccCanvas();
+            if (testData) {
+              const taxonName = 'TestData';
+              cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
+              cgColor[taxonName] = cmColors[0];
+              getTestData('../testData/testData.json', taxonName);
+            } else {
+              const taxonName = getCanonicalName();
+              cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
+              addValOccCanvas();
+            }
         });
 
         // Add a listener to handle the 'Get Species Info' button click
