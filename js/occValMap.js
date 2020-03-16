@@ -31,10 +31,10 @@ var stateLayer = false;
 var countyLayer = false;
 var townLayer = false;
 var bioPhysicalLayer = false;
-var testLayer = false;
 //var kmlGroup = false; //this was global.  made it function scope so it's garbage collected.  global not necessary b/c it's used in one function.
 var testHarness = false;
-var testData = true;
+var testData = false //flag to enable test data for development and debugging
+var surveyBlocks = false; //flag this is a survey map for choosing priority blocks to work on (lady beetle atlas survey)
 
 //for standalone use
 function addMap() {
@@ -110,6 +110,15 @@ function addMap() {
 
     valMap.on("zoomend", e => onZoomEnd(e));
     valMap.on("overlayadd", e => MapOverlayAdd(e));
+}
+
+/*
+  Fired when an overlay is selected through a layer control. We send all overlays
+  to the back so that point markers remain clickable, in the foreground.
+*/
+function MapOverlayAdd(e) {
+  console.log('MapOverlayAdd', e);
+  e.layer.bringToBack();
 }
 
 function onZoomEnd(e) {
@@ -188,20 +197,11 @@ async function addBoundaries() {
     addGeoJsonLayer('geojson/LineString_VT_Town_Boundaries.geojson', "Town Boundaries", boundaryLayerControl);
     addGeoJsonLayer('geojson/LineString_VT_Biophysical_Regions.geojson', "Biophysical Regions", boundaryLayerControl);
 */
-    addGeoJsonLayer('geojson/Polygon_VT_State_Boundary.geojson', "State Boundary", boundaryLayerControl);
-    addGeoJsonLayer('geojson/Polygon_VT_County_Boundaries.geojson', "County Area", boundaryLayerControl, true);
-    addGeoJsonLayer('geojson/Polygon_VT_Town_Boundaries.geojson', "Town Boundaries", boundaryLayerControl);
+    addGeoJsonLayer('geojson/Polygon_VT_State_Boundary.geojson', "State", boundaryLayerControl);
+    addGeoJsonLayer('geojson/Polygon_VT_County_Boundaries.geojson', "Counties", boundaryLayerControl, !surveyBlocks);
+    addGeoJsonLayer('geojson/Polygon_VT_Town_Boundaries.geojson', "Towns", boundaryLayerControl);
     addGeoJsonLayer('geojson/Polygon_VT_Biophysical_Regions.geojson', "Biophysical Regions", boundaryLayerControl);
-}
-
-/*
-  Fired when an overlay is selected through a layer control.
-  We send all overlay to the back so that point markers remain
-  clickable, in the foreground.
-*/
-function MapOverlayAdd(e) {
-  console.log('MapOverlayAdd', e);
-  e.layer.bringToBack();
+    addGeoJsonLayer('geojson/surveyblocksWGS84.geojson', "Survey Blocks", boundaryLayerControl, surveyBlocks);
 }
 
 function addGeoJsonLayer(file="test.geojson", layerName="Test", layerControl=null, addToMap=false) {
@@ -248,36 +248,53 @@ function onEachFeature(feature, layer) {
       }
       */
     });
-
-    // does this feature have a property named popupContent?
-    /*
-    if (feature.properties && feature.properties.popupContent) {
-        layer.bindPopup(feature.properties.popupContent);
-    }
-    */
+    layer.on('mousemove', function (e) {
+      //console.log('mousemove', e);
+    });
     if (feature.properties) {
         var obj = feature.properties;
         var props = '';
+        var links = '';
         for (var key in obj) {
-          switch(key.substr(key.length - 4)) {
+          switch(key.substr(key.length - 4)) { //last 4 characters of property
             case 'NAME':
               props += `${key}: ${obj[key]}<br>`;
               break;
             case 'EOID':
+              //props += `${key}: ${obj[key]}<br>`;
+              break;
+            case 'TYPE':
               props += `${key}: ${obj[key]}<br>`;
               break;
           }
+          if (feature.properties.BLOCKNAME && feature.properties.BLOCK_TYPE=='PRIORITY') {
+            var name = feature.properties.BLOCKNAME;
+            var link = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
+            links = `<a href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
+            links += `<a href="https://val.vtecostudies.org/survey/ladybeetle/signup?surveyblock=${link}">Signup for ${name}</a>`
+          }
         }
-        if (props) {layer.bindPopup(props);}
+        if (props) {
+          layer.bindTooltip(props);
+        }
+        if (links && surveyBlocks) {
+          layer.bindPopup(links);
+        }
     }
 }
 
 function onStyle(feature) {
-    switch (feature.properties.type) {
-        case 'marker': return {color: "black"};
-        case 'polygon': return {color: "yellow"};
-        case 'linestring': return {color: "red"};
-        default: return {color:"black", weight:1, fillOpacity:0.1, fillColor:"blue"};
+    if (feature.properties.BLOCK_TYPE) {
+      switch(feature.properties.BLOCK_TYPE) {
+        case 'PRIORITY':
+          return {color:"black", weight:1, fillOpacity:0.2, fillColor:"yellow"};
+          break;
+        case 'NONPRIOR':
+          return {color:"black", weight:1, fillOpacity:0.1, fillColor:"blue"};
+          break;
+      }
+    } else {
+      return {color:"black", weight:1, fillOpacity:0.1, fillColor:"blue"};
     }
 }
 
@@ -625,6 +642,12 @@ if (document.getElementById("valStandalone")) {
 
     });
 }
+
+if (document.getElementById("valSurveyBlocks")) {
+  surveyBlocks = true;
+  initValStandalone();
+}
+
 /*
  * Minimal (map-only) standalone use
  *
