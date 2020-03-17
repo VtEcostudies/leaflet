@@ -32,6 +32,7 @@ var countyLayer = false;
 var townLayer = false;
 var bioPhysicalLayer = false;
 //var kmlGroup = false; //this was global.  made it function scope so it's garbage collected.  global not necessary b/c it's used in one function.
+var geoGroup = false; //geoJson boundary group for ZIndex management
 var testHarness = false;
 var testData = false //flag to enable test data for development and debugging
 var surveyBlocks = false; //flag this is a survey map for choosing priority blocks to work on (lady beetle atlas survey)
@@ -117,8 +118,14 @@ function addMap() {
   to the back so that point markers remain clickable, in the foreground.
 */
 function MapOverlayAdd(e) {
-  console.log('MapOverlayAdd', e);
-  e.layer.bringToBack();
+  //console.log('MapOverlayAdd', e.layer.options.name);
+  e.layer.bringToBack(); //push the just-added layer to back
+  geoGroup.eachLayer(layer => {
+    //console.log('geoGroup', layer.options.name);
+    if (layer.options.name != e.layer.options.name) {
+      layer.bringToBack(); //push other overlays to back
+    }
+  })
 }
 
 function onZoomEnd(e) {
@@ -197,23 +204,26 @@ async function addBoundaries() {
     addGeoJsonLayer('geojson/LineString_VT_Town_Boundaries.geojson', "Town Boundaries", boundaryLayerControl);
     addGeoJsonLayer('geojson/LineString_VT_Biophysical_Regions.geojson', "Biophysical Regions", boundaryLayerControl);
 */
-    addGeoJsonLayer('geojson/Polygon_VT_State_Boundary.geojson', "State", boundaryLayerControl);
-    addGeoJsonLayer('geojson/Polygon_VT_County_Boundaries.geojson', "Counties", boundaryLayerControl, !surveyBlocks);
-    addGeoJsonLayer('geojson/Polygon_VT_Town_Boundaries.geojson', "Towns", boundaryLayerControl);
-    addGeoJsonLayer('geojson/Polygon_VT_Biophysical_Regions.geojson', "Biophysical Regions", boundaryLayerControl);
-    addGeoJsonLayer('geojson/surveyblocksWGS84.geojson', "Survey Blocks", boundaryLayerControl, surveyBlocks);
+    geoGroup = new L.FeatureGroup();
+    addGeoJsonLayer('geojson/Polygon_VT_State_Boundary.geojson', "State", boundaryLayerControl, geoGroup);
+    addGeoJsonLayer('geojson/Polygon_VT_County_Boundaries.geojson', "Counties", boundaryLayerControl, geoGroup, !surveyBlocks);
+    addGeoJsonLayer('geojson/Polygon_VT_Town_Boundaries.geojson', "Towns", boundaryLayerControl, geoGroup);
+    addGeoJsonLayer('geojson/Polygon_VT_Biophysical_Regions.geojson', "Biophysical Regions", boundaryLayerControl, geoGroup);
+    addGeoJsonLayer('geojson/surveyblocksWGS84.geojson', "Survey Blocks", boundaryLayerControl, geoGroup, surveyBlocks);
 }
 
-function addGeoJsonLayer(file="test.geojson", layerName="Test", layerControl=null, addToMap=false) {
+function addGeoJsonLayer(file="test.geojson", layerName="Test", layerControl=null, layerGroup=null, addToMap=false) {
   var layer = null;
   return new Promise(async (resolve, reject) => {
     loadGeoJSON(file, (data) => {
       layer = L.geoJSON(data, {
           onEachFeature: onEachFeature,
-          style: onStyle
+          style: onStyle,
+          name: layerName //IMPORTANT: this used to compare layers at ZIndex time
       });
       if (addToMap) {layer.addTo(valMap); layer.bringToBack();}
       if (layerControl) {layerControl.addOverlay(layer, layerName);}
+      if (layerGroup) {layerGroup.addLayer(layer);}
       resolve(layer);
     });
   });
@@ -234,7 +244,7 @@ function loadFile(file, callback) {
             // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
             callback(xobj.responseText);
           } else {
-            console.log(`loadFile | status: ${xobj.status} | readyState: ${xobj.readyState}`);
+            //console.log(`loadFile | status: ${xobj.status} | readyState: ${xobj.readyState}`);
           }
     };
     xobj.send(null);
@@ -256,15 +266,15 @@ function onEachFeature(feature, layer) {
         var props = '';
         var links = '';
         for (var key in obj) {
-          switch(key.substr(key.length - 4)) { //last 4 characters of property
-            case 'NAME':
-              props += `${key}: ${obj[key]}<br>`;
+          switch(key.substr(key.length - 4).toLowerCase()) { //last 4 characters of property
+            case 'name':
+              props += `${obj[key]}<br>`;
               break;
-            case 'EOID':
+            case 'eoid':
               //props += `${key}: ${obj[key]}<br>`;
               break;
-            case 'TYPE':
-              props += `${key}: ${obj[key]}<br>`;
+            case 'type':
+              props += `${obj[key]}<br>`;
               break;
           }
           if (feature.properties.BLOCKNAME && feature.properties.BLOCK_TYPE=='PRIORITY') {
@@ -283,6 +293,9 @@ function onEachFeature(feature, layer) {
     }
 }
 
+/*
+  Callback function to set style of added geoJson overlays on the Boundary Layer Control
+*/
 function onStyle(feature) {
     if (feature.properties.BLOCK_TYPE) {
       switch(feature.properties.BLOCK_TYPE) {
@@ -294,7 +307,15 @@ function onStyle(feature) {
           break;
       }
     } else {
-      return {color:"black", weight:1, fillOpacity:0.1, fillColor:"blue"};
+      if (feature.properties.BIOPHYSRG1) { //biophysical regions
+        return {color:"red", weight:1, fillOpacity:0.1, fillColor:"red"};
+      } else if (feature.properties.CNTYNAME) { //counties
+        return {color:"yellow", weight:1, fillOpacity:0.1, fillColor:"yellow"};
+      } else if (feature.properties.TOWNNAME) { //towns
+        return {color:"blue", weight:1, fillOpacity:0.1, fillColor:"blue"};
+      } else {
+        return {color:"black", weight:1, fillOpacity:0.1, fillColor:"black"};
+      }
     }
 }
 
