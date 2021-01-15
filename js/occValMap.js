@@ -3,6 +3,10 @@ jtl 10/23/2018
 Leaflet experiment.
 Goals:
 - load a json array from VAL Data Portal Occurrence API and populate the map with point occurrence data
+
+Convert kml to geoJson:
+  https://github.com/mapbox/togeojson
+  - togeojson file.kml > file.geojson
 */
 import {getCanonicalName, getScientificName, getAllData} from "./gbifAutoComplete.js";
 import {colorsList, speciesList} from "./mapTheseSpecies.js";
@@ -135,7 +139,12 @@ function onZoomEnd(e) {
 }
 
 /*
- * https://github.com/mapbox/leaflet-omnivore
+  Add boundaries to map and control. Converted from KML to geoJSON
+
+  https://github.com/mapbox/leaflet-omnivore (no longer used)
+
+  https://github.com/mapbox/togeojson
+  - togeojson file.kml > file.geojson
  */
 async function addBoundaries() {
 
@@ -210,12 +219,13 @@ async function addBoundaries() {
     addGeoJsonLayer('geojson/Polygon_VT_Town_Boundaries.geojson', "Towns", boundaryLayerControl, geoGroup);
     addGeoJsonLayer('geojson/Polygon_VT_Biophysical_Regions.geojson', "Biophysical Regions", boundaryLayerControl, geoGroup);
     addGeoJsonLayer('geojson/surveyblocksWGS84.geojson', "Survey Blocks", boundaryLayerControl, geoGroup, surveyBlocks);
+    //addGeoJsonLayer('geojson/LadyBeetle_Priority.geojson', "Survey Blocks", boundaryLayerControl, geoGroup, surveyBlocks);
 }
 
 function addGeoJsonLayer(file="test.geojson", layerName="Test", layerControl=null, layerGroup=null, addToMap=false) {
   var layer = null;
   return new Promise(async (resolve, reject) => {
-    loadGeoJSON(file, (data) => {
+    loadJSON(file, (data) => {
       layer = L.geoJSON(data, {
           onEachFeature: onEachFeature,
           style: onStyle,
@@ -229,16 +239,24 @@ function addGeoJsonLayer(file="test.geojson", layerName="Test", layerControl=nul
   });
 }
 
-function loadGeoJSON(file, callback) {
-  loadFile(file, (res) => {
+function loadJSON(file, callback) {
+  loadFile(file, "application/json", (res) => {
     callback(JSON.parse(res));
   })
 }
 
-function loadFile(file, callback) {
+/*
+  Common MIME Types:
+    application/json
+    application/xml
+    text/plain
+    text/javascript
+    text/csv
+*/
+function loadFile(file, mime="text/plain", callback) {
     var xobj = new XMLHttpRequest();
-        xobj.overrideMimeType("application/json");
-    xobj.open('GET', file, true); // Replace 'my_data' with the path to your file
+        xobj.overrideMimeType(mime);
+    xobj.open('GET', file, true);
     xobj.onreadystatechange = function () {
           if (xobj.readyState == 4 && xobj.status == "200") {
             // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
@@ -251,12 +269,9 @@ function loadFile(file, callback) {
 }
 
 function onEachFeature(feature, layer) {
-    layer.on('click', function (e) {
-      /*
-      if (feature.properties && feature.properties.CNTYNAME) {
-        alert(feature.properties.CNTYNAME);
-      }
-      */
+    layer.on('click', function (event) {
+        //console.log('click | event', event, '| layer', layer);
+        event.target._map.fitBounds(layer.getBounds());
     });
     layer.on('mousemove', function (e) {
       //console.log('mousemove', e);
@@ -277,11 +292,15 @@ function onEachFeature(feature, layer) {
               props += `${obj[key]}<br>`;
               break;
           }
-          if (feature.properties.BLOCKNAME && feature.properties.BLOCK_TYPE=='PRIORITY') {
+          if (feature.properties.BLOCKNAME && (feature.properties.BLOCK_TYPE=='PRIORITY' || feature.properties.BLOCK_TYPE=='PRIORITY1')) {
             var name = feature.properties.BLOCKNAME;
             var link = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
-            links = `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
-            links += `<a target="_blank" href="https://val.vtecostudies.org/projects/lady-beetle-atlas/signup?surveyblock=${link}">Signup for ${name}</a>`
+            if (feature.properties.BLOCK_TYPE=='PRIORITY1') {
+              links = `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
+              links += `<a target="_blank" href="https://val.vtecostudies.org/projects/lady-beetle-atlas/signup?surveyblock=${link}">Signup for ${name}</a>`
+            } else {
+              links = `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
+            }
           }
         }
         if (props) {
@@ -299,6 +318,9 @@ function onEachFeature(feature, layer) {
 function onStyle(feature) {
     if (feature.properties.BLOCK_TYPE) {
       switch(feature.properties.BLOCK_TYPE) {
+        case 'PRIORITY1':
+          return {color:"black", weight:1, fillOpacity:0.2, fillColor:"red"};
+          break;
         case 'PRIORITY':
           return {color:"black", weight:1, fillOpacity:0.2, fillColor:"yellow"};
           break;
@@ -356,26 +378,36 @@ function initValOccCanvas() {
 
 function getTestData(file, taxonName) {
   //load test data
-  loadGeoJSON(file, (data) => {
+  loadJSON(file, (data) => {
     updateMap(data.occurrences, taxonName);
   });
 }
 
 /*
- * query VAL Occ API for json array of occurrence data
- *
- * add array of circleMarkers to canvas renderer...
- *
+* query VAL Occ API for json array of occurrence data
+*
+* add array of circleMarkers to canvas renderer...
+*
+* See these for ideas on how to get an exact match from biocache-ws
+* https://biocache-ws.vtatlasoflife.org/oldapi
+* https://biocache-ws.vtatlasoflife.org/index/fields
+*
+* None of it makes any sense, however.
 */
 function addValOccCanvas(taxonName=false) {
 
     console.log(`addValOccCanvas(${taxonName})`);
 
-    var baseUrl = 'https://biocache-ws.vtatlasoflife.org/occurrences/search'; //'http://vtatlasoflife.org/biocache-service/occurrences/search'; // biocache-service/occurrences/search?q=*:*
+    var baseUrl = 'https://biocache-ws.vtatlasoflife.org/occurrences/search';
     var pageSize = `&pageSize=${xhrRecsPerPage}`;
     if (!taxonName) {taxonName = getCanonicalName();}
-    var q = `?q=${taxonName}`; //this formation of the search appears to match to scientificName properly
+    var toks = taxonName.split(" ");
+    var q = '?';
+    //q = `?q=${taxonName}`; //q=taxonName alone does not limit to exact match. need to use fq
     var fq = ``; //`&fq=year:2018&fq=basis_of_record:PreservedSpecimen`;
+    if (toks[0]) fq = `&fq=genus:${toks[0]}`;
+    if (toks[1]) fq += `&fq=species:${taxonName}`;
+    if (toks[2]) fq += `&fq=subspecies:${taxonName}`;
     /*
     var lat = `&lat:`;
     var lon = `&lon:`;
@@ -386,7 +418,7 @@ function addValOccCanvas(taxonName=false) {
     var valUrl = baseUrl + q + fq + pageSize + wkt;
     if(document.getElementById("apiUrlLabel")) {document.getElementById("apiUrlLabel").innerHTML = (valUrl);}
 
-    //console.log(`addValOccCanvas`, valUrl);
+    console.log(`addValOccCanvas`, valUrl);
 
     // start a new chain of fetch events
     initXhrRequest(valUrl, taxonName);
@@ -432,6 +464,8 @@ function xhrResults(valXHR, url, taxonName) {
     if (document.getElementById("jsonResults")) {
         document.getElementById("jsonResults").innerHTML = `total ${taxonName}: ${totr}  | ${taxonName} loaded: ${netr}`;
         }
+    //console.log(`xhrResults | requested taxon: ${taxonName} | result:`);
+    //console.dir(jsonRes);
     updateMap(jsonRes.occurrences, taxonName);
     if (totr > netr) {
         loadPage(valXHR, url, taxonName, netr+1);
