@@ -289,14 +289,19 @@ function onEachFeature(feature, layer) {
               //props += `${key}: ${obj[key]}<br>`;
               break;
             case 'type':
-              props += `${obj[key]}<br>`;
+	      if (obj[key] == 'PRIORITY1') {
+		props += '<b><u>LADY BEETLE SURVEY BLOCK</u></b><br>';
+	      } else {
+	        props += `${obj[key]}<br>`;
+	      }
               break;
           }
           if (feature.properties.BLOCKNAME && (feature.properties.BLOCK_TYPE=='PRIORITY' || feature.properties.BLOCK_TYPE=='PRIORITY1')) {
             var name = feature.properties.BLOCKNAME;
             var link = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
             if (feature.properties.BLOCK_TYPE=='PRIORITY1') {
-              links = `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
+              links = `<b><u>LADY BEETLE SURVEY BLOCK</u></b></br>`;
+              links += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
               links += `<a target="_blank" href="https://val.vtecostudies.org/projects/lady-beetle-atlas/signup?surveyblock=${link}">Signup for ${name}</a>`
             } else {
               links = `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
