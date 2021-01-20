@@ -60,19 +60,21 @@ function addMap() {
             '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
             '© <a href="https://www.mapbox.com/">Mapbox</a>';
 
-    var streets = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
+    var mapBoxAccessToken = 'pk.eyJ1Ijoiamxvb21pc3ZjZSIsImEiOiJjanB0dzVoZ3YwNjlrNDNwYm9qN3NmNmFpIn0.tyJsp2P7yR2zZV4KIkC16Q';
+
+    var streets = L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=${mapBoxAccessToken}`, {
         maxZoom: 20,
         attribution: attribSmall,
         id: 'mapbox.streets'
     });
-
+/*
     var light = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
         maxZoom: 20,
         attribution: attribSmall,
         id: 'mapbox.light'
     });
-
-    var satellite = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
+*/
+    var satellite = L.tileLayer(`https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}@2x.jpg90?access_token=${mapBoxAccessToken}`, {
         maxZoom: 20,
         attribution: attribSmall,
         id: 'mapbox.satellite'
@@ -103,7 +105,7 @@ function addMap() {
     }
 
     basemapLayerControl.addBaseLayer(streets, "Mapbox Streets");
-    basemapLayerControl.addBaseLayer(light, "Mapbox Grayscale");
+    //basemapLayerControl.addBaseLayer(light, "Mapbox Grayscale");
     basemapLayerControl.addBaseLayer(satellite, "Mapbox Satellite");
     basemapLayerControl.addBaseLayer(esriWorld, "ESRI Imagery");
     basemapLayerControl.addBaseLayer(esriTopo, "ESRI Topo Map");
@@ -407,12 +409,19 @@ function addValOccCanvas(taxonName=false) {
     var pageSize = `&pageSize=${xhrRecsPerPage}`;
     if (!taxonName) {taxonName = getCanonicalName();}
     var toks = taxonName.split(" ");
-    var q = '?';
-    //q = `?q=${taxonName}`; //q=taxonName alone does not limit to exact match. need to use fq
-    var fq = ``; //`&fq=year:2018&fq=basis_of_record:PreservedSpecimen`;
+    var q = '?q=';
+    //q = `?q=${taxonName}`; //q=taxonName alone does not limit to exact match. need to use fq or logical AND, see below
+    toks.forEach((val,idx,arr) => {
+      q += val;
+      if (arr.length > 1 && idx < (arr.length-1)) {q += ' AND ';}
+    })
+    var fq = ''; //`&fq=year:2018&fq=basis_of_record:PreservedSpecimen`;
+    /*
+    This doesn't handle higher-order taxa than genus
     if (toks[0]) fq = `&fq=genus:${toks[0]}`;
     if (toks[1]) fq += `&fq=species:${taxonName}`;
     if (toks[2]) fq += `&fq=subspecies:${taxonName}`;
+    */
     /*
     var lat = `&lat:`;
     var lon = `&lon:`;
@@ -423,7 +432,7 @@ function addValOccCanvas(taxonName=false) {
     var valUrl = baseUrl + q + fq + pageSize + wkt;
     if(document.getElementById("apiUrlLabel")) {document.getElementById("apiUrlLabel").innerHTML = (valUrl);}
 
-    console.log(`addValOccCanvas`, valUrl);
+    console.log(`addValOccCanvas API query:`, baseUrl + q + fq);
 
     // start a new chain of fetch events
     initXhrRequest(valUrl, taxonName);

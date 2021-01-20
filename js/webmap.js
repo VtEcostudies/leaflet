@@ -33,37 +33,41 @@ function addMap() {
             crs: L.CRS.EPSG3857 //have to do this to conform to USGS maps
         });
 
-    var light = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
-        maxZoom: 20,
-        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
+    var attribLarge =  'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
             '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
-            'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
-        id: 'mapbox.light'
+            'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>';
+
+    var attribSmall =  '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>, ' +
+            '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+            '© <a href="https://www.mapbox.com/">Mapbox</a>';
+
+    var mapBoxAccessToken = 'pk.eyJ1Ijoiamxvb21pc3ZjZSIsImEiOiJjanB0dzVoZ3YwNjlrNDNwYm9qN3NmNmFpIn0.tyJsp2P7yR2zZV4KIkC16Q';
+
+    var streets = L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=${mapBoxAccessToken}`, {
+        maxZoom: 20,
+        attribution: attribSmall,
+        id: 'mapbox.streets'
     }).addTo(valMap);
-    
-    var satellite = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
+
+    var satellite = L.tileLayer(`https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}@2x.jpg90?access_token=${mapBoxAccessToken}`, {
         maxZoom: 20,
-        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
-            '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
-            'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+        attribution: attribSmall,
         id: 'mapbox.satellite'
     });
-    
-    var streets = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
+/*
+    var light = L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/light-v10/{z}/{x}/{y}.png?access_token=${mapBoxAccessToken}`, {
         maxZoom: 20,
-        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
-            '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
-            'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
-        id: 'mapbox.streets'
+        attribution: attribSmall,
+        id: 'mapbox.light'
     });
-
+*/
     if(layerControl === false) {
         layerControl = L.control.layers().addTo(valMap);
     }
 
-    layerControl.addBaseLayer(light, "Grayscale");
-    layerControl.addBaseLayer(satellite, "Satellite");
+    //layerControl.addBaseLayer(light, "Grayscale");
     layerControl.addBaseLayer(streets, "Streets");
+    layerControl.addBaseLayer(satellite, "Satellite");
 }
 
 function addMarker() {
