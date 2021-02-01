@@ -270,13 +270,78 @@ function loadFile(file, mime="text/plain", callback) {
     xobj.send(null);
 }
 
+function getIntersectingFeatures(e) {
+  var clickBounds = L.latLngBounds(e.latlng, e.latlng);
+  var lcnt = 0;
+  var fcnt = 0;
+  var feat = {};
+
+  var intersectingFeatures = [];
+  for (var l in valMap._layers) {
+    lcnt++;
+    var overlay = valMap._layers[l];
+    if (overlay._layers) {
+      for (var f in overlay._layers) {
+        fcnt++;
+        var feature = overlay._layers[f];
+        var bounds;
+        if (feature.getBounds) {
+          bounds = feature.getBounds();
+        } else if (feature._latlng) {
+          bounds = L.latLngBounds(feature._latlng, feature._latlng);
+        } else {;}
+        if (bounds && clickBounds.intersects(bounds)) {
+          var id = `${feature._leaflet_id}`;
+          //console.log(`feature._leaflet_id:`,feature._leaflet_id, feat, feat[id]);
+          if (feat[id]) {
+              //console.log('skipping', feat);
+            } else {
+              //console.log(`adding`, feat);
+              intersectingFeatures.push(feature);
+              feat[id] = true;
+            }
+        }
+      }
+    }
+  }
+  console.log(`getIntersectingFeatures | layers: ${lcnt} | features: ${fcnt} | _leaflet_ids:`, feat);
+  console.log('intersectingFeatures:', intersectingFeatures);
+  var html = null;
+  if (intersectingFeatures.length) {
+    // if at least one feature found, show it
+    html = `<u>Found ${intersectingFeatures.length} features</u><br/>`;
+    intersectingFeatures.forEach((ele,idx,arr) => {
+      if (ele.defaultOptions && ele.defaultOptions.name) {
+        html += ele.defaultOptions.name + ': ';
+      }
+      if (ele.feature && ele.feature.properties && ele.feature.properties.BLOCKNAME) {html += ele.feature.properties.BLOCKNAME}
+      if (ele.feature && ele.feature.properties && ele.feature.properties.TOWNNAME) {html += ele.feature.properties.TOWNNAME}
+      if (ele.feature && ele.feature.properties && ele.feature.properties.CNTYNAME) {html += ele.feature.properties.CNTYNAME}
+      if (ele.feature && ele.feature.properties && ele.feature.properties.name) {html += ele.feature.properties.name}
+      html += '<br/>';
+    })
+  }
+  return html;
+}
+
 function onEachFeature(feature, layer) {
+    layer.on('mousemove', function (event) {
+      //console.log('mousemove', event);
+    });
     layer.on('click', function (event) {
         //console.log('click | event', event, '| layer', layer);
         event.target._map.fitBounds(layer.getBounds());
+        //clickHandler(event, layer);
     });
-    layer.on('mousemove', function (e) {
-      //console.log('mousemove', e);
+    layer.on('contextmenu', function (event) {
+        //console.log('CONTEXT-MENU | event', event, '| layer', layer);
+        //event.target._map.fitBounds(layer.getBounds());
+        //var html = getIntersectingFeatures(event);
+        /*
+        valMap.openPopup(html, event.latlng, {
+          offset: L.point(0, -24)
+        });
+        */
     });
     if (feature.properties) {
         var obj = feature.properties;
@@ -291,23 +356,29 @@ function onEachFeature(feature, layer) {
               //props += `${key}: ${obj[key]}<br>`;
               break;
             case 'type':
-	      if (obj[key] == 'PRIORITY1') {
-		props += '<b><u>LADY BEETLE SURVEY BLOCK</u></b><br>';
-	      } else {
-	        props += `${obj[key]}<br>`;
-	      }
+      	      if (obj[key] == 'PRIORITY1') {
+      		      props += '<b><u>LADY BEETLE SURVEY BLOCK - HIGH PRIORITY</u></b><br>';
+      	      } else if (obj[key] == 'PRIORITY') {
+                props += '<b><u>PRIORITY BLOCK</u></b><br>';
+              } else if (obj[key] == 'NONPRIOR') {
+                props += 'NON-PRIORITY BLOCK<br>';
+      	      } else {
+      	        props += `${obj[key]}<br>`;
+      	      }
               break;
           }
-          if (feature.properties.BLOCKNAME && (feature.properties.BLOCK_TYPE=='PRIORITY' || feature.properties.BLOCK_TYPE=='PRIORITY1')) {
+          if (feature.properties.BLOCKNAME &&
+            (feature.properties.BLOCK_TYPE=='PRIORITY' || feature.properties.BLOCK_TYPE=='PRIORITY1'))
+          {
             var name = feature.properties.BLOCKNAME;
             var link = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
             if (feature.properties.BLOCK_TYPE=='PRIORITY1') {
-              links = `<b><u>LADY BEETLE SURVEY BLOCK</u></b></br>`;
-              links += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
-              links += `<a target="_blank" href="https://val.vtecostudies.org/projects/lady-beetle-atlas/signup?surveyblock=${link}">Signup for ${name}</a>`
+              links = `<b><u>LADY BEETLE SURVEY BLOCK - HIGH PRIORITY</u></b></br>`;
             } else {
-              links = `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
+              links = `<b><u>PRIORITY BLOCK</u></b></br>`;
             }
+            links += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
+            links += `<a target="_blank" href="https://val.vtecostudies.org/projects/lady-beetle-atlas/signup?surveyblock=${link}">Signup for ${name}</a>`
           }
         }
         if (props) {
@@ -332,7 +403,7 @@ function onStyle(feature) {
           return {color:"black", weight:1, fillOpacity:0.2, fillColor:"yellow"};
           break;
         case 'NONPRIOR':
-          return {color:"black", weight:1, fillOpacity:0.1, fillColor:"blue"};
+          return {color:"black", weight:1, fillOpacity:0.0, fillColor:"blue"};
           break;
       }
     } else {
