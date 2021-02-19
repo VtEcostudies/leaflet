@@ -39,7 +39,8 @@ var bioPhysicalLayer = false;
 var geoGroup = false; //geoJson boundary group for ZIndex management
 var testHarness = false;
 var testData = false //flag to enable test data for development and debugging
-var surveyBlocks = false; //flag this is a survey map for choosing priority blocks to work on (lady beetle atlas survey)
+var surveyBlocksLady = false; //flag a lady beetle atlas survey block map
+var surveyBlocksEAME = false; //flag an EAME survey block map
 
 //for standalone use
 function addMap() {
@@ -216,22 +217,27 @@ async function addBoundaries() {
     addGeoJsonLayer('geojson/LineString_VT_Biophysical_Regions.geojson', "Biophysical Regions", boundaryLayerControl);
 */
     geoGroup = new L.FeatureGroup();
-    addGeoJsonLayer('geojson/Polygon_VT_State_Boundary.geojson', "State", boundaryLayerControl, geoGroup);
-    addGeoJsonLayer('geojson/Polygon_VT_County_Boundaries.geojson', "Counties", boundaryLayerControl, geoGroup, !surveyBlocks);
-    addGeoJsonLayer('geojson/Polygon_VT_Town_Boundaries.geojson', "Towns", boundaryLayerControl, geoGroup);
-    addGeoJsonLayer('geojson/Polygon_VT_Biophysical_Regions.geojson', "Biophysical Regions", boundaryLayerControl, geoGroup);
-    addGeoJsonLayer('geojson/surveyblocksWGS84.geojson', "Survey Blocks", boundaryLayerControl, geoGroup, surveyBlocks);
-    //addGeoJsonLayer('geojson/LadyBeetle_Priority.geojson', "Survey Blocks", boundaryLayerControl, geoGroup, surveyBlocks);
+    addGeoJsonLayer('geojson/Polygon_VT_State_Boundary.geojson', "State", 0, boundaryLayerControl, geoGroup);
+    addGeoJsonLayer('geojson/Polygon_VT_County_Boundaries.geojson', "Counties", 1, boundaryLayerControl, geoGroup, !surveyBlocksLady && !surveyBlocksEAME);
+    addGeoJsonLayer('geojson/Polygon_VT_Town_Boundaries.geojson', "Towns", 2, boundaryLayerControl, geoGroup);
+    addGeoJsonLayer('geojson/Polygon_VT_Biophysical_Regions.geojson', "Biophysical Regions", 3, boundaryLayerControl, geoGroup);
+    if (surveyBlocksLady) {
+      addGeoJsonLayer('geojson/surveyblocksWGS84.geojson', "Survey Blocks - Lady Beetles", 4, boundaryLayerControl, geoGroup, surveyBlocksLady);
+    } else if (surveyBlocksEAME) {
+      addGeoJsonLayer('geojson/EAME_Priority_Blocks.geojson', "Survey Blocks - EAME", 5, boundaryLayerControl, geoGroup, surveyBlocksEAME);
+      //addGeoJsonLayer('geojson/EAME_Hay_Over_10.geojson', "Hay Coverage - EAME", 6, boundaryLayerControl, geoGroup);
+    }
 }
 
-function addGeoJsonLayer(file="test.geojson", layerName="Test", layerControl=null, layerGroup=null, addToMap=false) {
+function addGeoJsonLayer(file="test.geojson", layerName="Test", layerId = 0, layerControl=null, layerGroup=null, addToMap=false) {
   var layer = null;
   return new Promise(async (resolve, reject) => {
     loadJSON(file, (data) => {
       layer = L.geoJSON(data, {
           onEachFeature: onEachFeature,
           style: onStyle,
-          name: layerName //IMPORTANT: this used to compare layers at ZIndex time
+          name: layerName, //IMPORTANT: this used to compare layers at ZIndex time
+          id: layerId
       });
       if (addToMap) {layer.addTo(valMap); layer.bringToBack();}
       if (layerControl) {layerControl.addOverlay(layer, layerName);}
@@ -331,6 +337,7 @@ function onEachFeature(feature, layer) {
     layer.on('click', function (event) {
         //console.log('click | event', event, '| layer', layer);
         event.target._map.fitBounds(layer.getBounds());
+        console.log(feature.properties);
         //clickHandler(event, layer);
     });
     layer.on('contextmenu', function (event) {
@@ -343,50 +350,108 @@ function onEachFeature(feature, layer) {
         });
         */
     });
-    if (feature.properties) {
-        var obj = feature.properties;
-        var props = '';
-        var links = '';
-        for (var key in obj) {
-          switch(key.substr(key.length - 4).toLowerCase()) { //last 4 characters of property
-            case 'name':
-              props += `${obj[key]}<br>`;
-              break;
-            case 'eoid':
-              //props += `${key}: ${obj[key]}<br>`;
-              break;
-            case 'type':
-      	      if (obj[key] == 'PRIORITY1') {
-      		      props += '<b><u>LADY BEETLE SURVEY BLOCK - HIGH PRIORITY</u></b><br>';
-      	      } else if (obj[key] == 'PRIORITY') {
-                props += '<b><u>PRIORITY BLOCK</u></b><br>';
-              } else if (obj[key] == 'NONPRIOR') {
-                props += 'NON-PRIORITY BLOCK<br>';
-      	      } else {
-      	        props += `${obj[key]}<br>`;
-      	      }
-              break;
-          }
-          if (feature.properties.BLOCKNAME &&
-            (feature.properties.BLOCK_TYPE=='PRIORITY' || feature.properties.BLOCK_TYPE=='PRIORITY1'))
-          {
-            var name = feature.properties.BLOCKNAME;
-            var link = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
-            if (feature.properties.BLOCK_TYPE=='PRIORITY1') {
-              links = `<b><u>LADY BEETLE SURVEY BLOCK - HIGH PRIORITY</u></b></br>`;
-            } else {
-              links = `<b><u>PRIORITY BLOCK</u></b></br>`;
+    if (4 == layer.options.id) { //Lady Beetle Survey Blocks
+      if (feature.properties) {
+          var obj = feature.properties;
+          var tips = '';
+          var pops = '';
+          for (var key in obj) {
+            switch(key.substr(key.length - 4).toLowerCase()) { //last 4 characters of property
+              case 'name':
+                tips += `${obj[key]}<br>`;
+                break;
+              case 'type':
+        	      if (obj[key] == 'PRIORITY1') {
+        		      tips = '<b><u>LADY BEETLE SURVEY BLOCK - HIGH PRIORITY</u></b><br>' + tips;
+        	      } else if (obj[key] == 'PRIORITY') {
+                  tips = '<b><u>PRIORITY BLOCK</u></b><br>' + tips;
+                } else if (obj[key] == 'NONPRIOR') {
+                  tips = 'NON-PRIORITY BLOCK<br>' + tips;
+        	      } else {
+        	        tips = `${obj[key]}<br>` + tips;
+        	      }
+                break;
             }
-            links += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
-            links += `<a target="_blank" href="https://val.vtecostudies.org/projects/lady-beetle-atlas/signup?surveyblock=${link}">Signup for ${name}</a>`
+            if (feature.properties.BLOCKNAME &&
+              (feature.properties.BLOCK_TYPE=='PRIORITY' || feature.properties.BLOCK_TYPE=='PRIORITY1'))
+            {
+              var name = feature.properties.BLOCKNAME;
+              var link = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
+              if (feature.properties.BLOCK_TYPE=='PRIORITY1') {
+                pops = `<b><u>LADY BEETLE SURVEY BLOCK - HIGH PRIORITY</u></b></br>`;
+              } else {
+                pops = `<b><u>PRIORITY BLOCK</u></b></br>`;
+              }
+              pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyBlocks/${link}.pdf">Get ${name} block map</a></br>`;
+              pops += `<a target="_blank" href="https://val.vtecostudies.org/projects/lady-beetle-atlas/signup?surveyblock=${link}">Signup for ${name}</a>`
+            }
           }
-        }
-        if (props) {
-          layer.bindTooltip(props);
-        }
-        if (links && surveyBlocks) {
-          layer.bindPopup(links);
-        }
+          if (tips) {layer.bindTooltip(tips);}
+          if (pops) {layer.bindPopup(pops);}
+      }
+    } //end Lady Beetle Survey Blocks code
+    else if (5 == layer.options.id) { //EAME Survey Blocks
+      if (feature.properties) {
+          var obj = feature.properties;
+          var tips = ''; //toolTip text
+          var pops = ''; //popup text
+          for (var key in obj) { //iterate over feature properties
+            //switch(key.substr(key.length - 4).toLowerCase()) { //last 4 characters of property
+            switch(key.toUpperCase()) {
+              case 'BLOCKNAME':
+                tips += `Block Name: ${obj[key]}<br>`;
+                break;
+              case 'BLOCK_TYPE':
+        	      if (obj[key] == 'PRIORITY1') {
+        		      tips = '<b><u>EAME SURVEY BLOCK - HIGH PRIORITY</u></b><br>' + tips;
+        	      } else if (obj[key] == 'PRIORITY') {
+                  tips = '<b><u>EAME SURVEY BLOCK - PRIORITY</u></b><br>' + tips;
+                } else if (obj[key] == 'NONPRIOR') {
+                  tips = 'EAME SURVEY BLOCK - NON-PRIORITY<br>' + tips;
+        	      } else {
+        	        tips = `${obj[key]}<br>` + tips;
+        	      }
+                break;
+              case 'HAY_HECTARES':
+                tips += `Hay Coverage in Hectares: ${obj[key]}<br>`;
+                break;
+              default:
+                //tips += `${key}: ${obj[key]}<br>`;
+                break;
+            }
+            if (feature.properties.BLOCKNAME &&
+              (feature.properties.BLOCK_TYPE=='PRIORITY' || feature.properties.BLOCK_TYPE=='PRIORITY1'))
+            {
+              var name = feature.properties.BLOCKNAME;
+              var link = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
+              if (feature.properties.BLOCK_TYPE=='PRIORITY1') {
+                pops = `<b><u>EAME SURVEY BLOCK - HIGH PRIORITY</u></b></br>`;
+              } else {
+                pops = `<b><u>EAME SURVEY BLOCK - PRIORITY</u></b></br>`;
+              }
+              pops += `<a target="_blank" href="https://docs.google.com/forms/d/1wkeipTq-MF920i-v0rHjqjW7rRhNSlQ9FSfS1kKhooQ/viewform?surveyblock=${link}">Signup for ${name}</a>`
+              pops += `</br>Hay Coverage in Hectares: ${feature.properties.HAY_HECTARES}`;
+            }
+          }
+          if (tips) {layer.bindTooltip(tips);}
+          if (pops) {layer.bindPopup(pops);}
+      } //end if (feature.properties)
+    } //end EAME Beetle Survey Blocks code
+    else { //handle all other layers' toolTips and popups
+      if (feature.properties) {
+          var obj = feature.properties;
+          var tips = '';
+          var pops = '';
+          for (var key in obj) { //iterate over feature properties
+            switch(key.substr(key.length - 4).toLowerCase()) { //last 4 characters of property
+              case 'name':
+                tips = `${obj[key]}<br>` + tips;
+                break;
+            }
+          }
+        if (tips) {layer.bindTooltip(tips);}
+        if (pops) {layer.bindPopup(pops);}
+      }
     }
 }
 
@@ -783,8 +848,13 @@ if (document.getElementById("valStandalone")) {
     });
 }
 
-if (document.getElementById("valSurveyBlocks")) {
-  surveyBlocks = true;
+if (document.getElementById("valSurveyBlocksLady")) {
+  surveyBlocksLady = true;
+  initValStandalone();
+}
+
+if (document.getElementById("valSurveyBlocksEAME")) {
+  surveyBlocksEAME = true;
   initValStandalone();
 }
 

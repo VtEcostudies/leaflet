@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+ 	<meta charset="utf-8"/>
+	<meta http-equiv="pragma" content="no-cache" />
+		<!-- Leaflet's CSS -->
+		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+			integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+			crossorigin=""/>
+
+    <!-- Make sure you put this AFTER Leaflet's CSS -->
+		<script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+		  integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+		  crossorigin=""></script>
+
+    <!-- omnivore lets us import file formats other than geoJSON.  eg. KML -->
+    <script src='//api.tiles.mapbox.com/mapbox.js/plugins/leaflet-omnivore/v0.3.1/leaflet-omnivore.min.js'></script>
+
+    <script src="js/jquery.min.js"></script>
+    <script src="js/tether.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/jquery-ui.min.js"></script>
+    <script src="js/moment.min.js"></script>
+    <!-- sliderControl not working yet... -->
+    <script src="js/SliderControl.js"></script>
+    <!-- the vce implementation -->
+    <script type="module" src="js/occValMap.js"></script>
+
+</head>
+<body>
+    <div id="valSurveyBlocksEAME">
+        <!--
+        <input id="getData" type="button" value="Get Data"></input>
+        <input id="clearData" type="button" value="Clear Data"></input>
+        -->
+        <div id="mapid" style="width: 800px; height: 600px;"></div>
+        <!--
+        <label id="zoomLabel" class="small vceOutline"></label>
+        <label id="jsonResults" class="small vceOutline"></label>
+        <label id="apiUrlLabel" class="small vceOutline"></label>
+        -->
+    </div> <!-- /container -->
+</body>
+</html>
