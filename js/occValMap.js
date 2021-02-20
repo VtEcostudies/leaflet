@@ -430,6 +430,7 @@ function onEachFeature(feature, layer) {
                 pops = `<b><u>EAME SURVEY BLOCK - PRIORITY</u></b></br>`;
               }
               pops += `<a target="_blank" href="https://docs.google.com/forms/d/1wkeipTq-MF920i-v0rHjqjW7rRhNSlQ9FSfS1kKhooQ/viewform?surveyblock=${link}">Signup for ${name}</a>`
+              pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/eame.surveyBlocks/${link}.pdf">Get ${name} block map</a></br>`;
               pops += `</br>Hay Coverage in Hectares: ${feature.properties.HAY_HECTARES}`;
             }
           }
