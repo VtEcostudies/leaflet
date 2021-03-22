@@ -420,18 +420,20 @@ function onEachFeature(feature, layer) {
                 break;
             }
             if (feature.properties.BLOCKNAME &&
-              (feature.properties.BLOCK_TYPE=='PRIORITY' || feature.properties.BLOCK_TYPE=='PRIORITY1'))
+              (feature.properties.BLOCK_TYPE=='PRIORITY' || feature.properties.BLOCK_TYPE=='PRIORITY1') || feature.properties.BLOCK_TYPE=='NONPRIOR')
             {
               var name = feature.properties.BLOCKNAME;
               var link = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
               if (feature.properties.BLOCK_TYPE=='PRIORITY1') {
                 pops = `<b><u>EAME SURVEY BLOCK - HIGH PRIORITY</u></b></br>`;
-              } else {
+              } else if (feature.properties.BLOCK_TYPE=='PRIORITY') {
                 pops = `<b><u>EAME SURVEY BLOCK - PRIORITY</u></b></br>`;
+              } else {
+                pops = `<b><u>EAME SURVEY BLOCK - NON-PRIORITY</u></b></br>`;
               }
               pops += `<a target="_blank" href="https://docs.google.com/forms/d/1wkeipTq-MF920i-v0rHjqjW7rRhNSlQ9FSfS1kKhooQ/viewform?surveyblock=${link}">Signup for ${name}</a></br>`
               pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/eame.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
-              pops += `</br>Hay Coverage in Hectares: ${feature.properties.HAY_HECTARES}`;
+              if (feature.properties.HAY_HECTARES) {pops += `</br>Hay Coverage in Hectares: ${feature.properties.HAY_HECTARES}`;}
             }
           }
           if (tips) {layer.bindTooltip(tips);}
