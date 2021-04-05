@@ -420,7 +420,9 @@ function onEachFeature(feature, layer) {
                 break;
             }
             if (feature.properties.BLOCKNAME &&
-              (feature.properties.BLOCK_TYPE=='PRIORITY' || feature.properties.BLOCK_TYPE=='PRIORITY1') || feature.properties.BLOCK_TYPE=='NONPRIOR')
+              (feature.properties.BLOCK_TYPE=='PRIORITY'
+              || feature.properties.BLOCK_TYPE=='PRIORITY1')
+              || feature.properties.BLOCK_TYPE=='NONPRIOR')
             {
               var name = feature.properties.BLOCKNAME;
               var link = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
