@@ -431,7 +431,7 @@ function onEachFeature(feature, layer) {
               } else {
                 pops = `<b><u>EAME SURVEY BLOCK - NON-PRIORITY</u></b></br>`;
               }
-              pops += `<a target="_blank" href="https://docs.google.com/forms/d/1wkeipTq-MF920i-v0rHjqjW7rRhNSlQ9FSfS1kKhooQ/viewform?surveyblock=${link}">Signup for ${name}</a></br>`
+              pops += `<a target="_blank" href="https://val.vtecostudies.org/projects/eastern-meadowlark-blitz/adopt-a-survey-block?surveyblock=${link}">Signup for ${name}</a></br>`
               pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/eame.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
               if (feature.properties.HAY_HECTARES) {pops += `</br>Hay Coverage in Hectares: ${feature.properties.HAY_HECTARES}`;}
             }
