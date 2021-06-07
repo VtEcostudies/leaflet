@@ -1004,6 +1004,7 @@ function getSpeciesListData(argSpecies = false) {
     }
 
     Object.keys(argSpecies).forEach(async function(taxonName) {
+        taxonName = taxonName.trim();
         cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
         cmCount[taxonName] = 0;
         cgColor[taxonName] = argSpecies[taxonName]; //define circleMarker color for each species mapped
