@@ -574,7 +574,7 @@ function addValOccByTaxon(taxonName=false) {
 */
 function addValOccByLsid(taxonName, lsid) {
 
-    console.log(`addValOccByLsid(${taxonName}, ${lsid})`);
+    //console.log(`addValOccByLsid(${taxonName}, ${lsid})`);
 
     var baseUrl = 'https://biocache-ws.vtatlasoflife.org/occurrences/search';
     var pageSize = `&pageSize=${xhrRecsPerPage}`;
@@ -591,11 +591,13 @@ function addValOccByLsid(taxonName, lsid) {
 /*
   initiate a chain of events to lookup taxonName for LSID and call biocache-ws with LSID...
 */
-function getBieSpeciesCallBiocacheLsid(taxonName) {
+function getBieSpeciesAddValOccByLsid(taxonName) {
     var baseUrl = 'https://bie-ws.vtatlasoflife.org/species/';
     if (!taxonName) {taxonName = getCanonicalName();}
     var url = baseUrl + taxonName;
     var bieXHR = new XMLHttpRequest();
+
+    console.log(`getBieSpeciesAddValOccByLsid API query for LSID for ${taxonName}`, url);
 
     //handle request responses here in this callback
     bieXHR.onreadystatechange = function() {
@@ -860,7 +862,7 @@ export function getValOccCanvas(map, taxonName) {
         cgColor[taxonName] = cmColors[0];
         cmCount[taxonName] = 0;
         cmTotal[taxonName] = 0;
-        getBieSpeciesCallBiocacheLsid(taxonName);
+        getBieSpeciesAddValOccByLsid(taxonName);
         if (!boundaryLayerControl) {addBoundaries();}
         //if (!sliderControl) {addTimeSlider(taxonName);}
         if (!speciesLayerControl) {
@@ -895,7 +897,7 @@ if (document.getElementById("valStandalone")) {
             } else {
               const taxonName = getCanonicalName();
               cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-              getBieSpeciesCallBiocacheLsid();
+              getBieSpeciesAddValOccByLsid();
             }
         });
 
@@ -954,7 +956,7 @@ if (document.getElementById("valLoadOnOpen")) {
         valMap.options.minZoom = 8;
         valMap.options.maxZoom = 17;
         //initValOccCanvas();
-        //getBieSpeciesCallBiocacheLsid('Bombus borealis');
+        //getBieSpeciesAddValOccByLsid('Bombus borealis');
         if (!boundaryLayerControl) {addBoundaries();}
         if (typeof speciesObj != "object") {
             alert('Please pass an object literal like [map-page-url]?species={"Turdus migratorius":"#800000"}');
@@ -1010,7 +1012,7 @@ function getSpeciesListData(argSpecies = false) {
         cgColor[taxonName] = argSpecies[taxonName]; //define circleMarker color for each species mapped
         cmTotal[taxonName] = 0;
         console.log(`getSpeciesListData: Add species group ${taxonName} with color ${argSpecies[taxonName]}`);
-        await getBieSpeciesCallBiocacheLsid(taxonName);
+        await getBieSpeciesAddValOccByLsid(taxonName);
         var idTaxonName = taxonName.split(' ').join('_');
         speciesLayerControl.addOverlay(cmGroup[taxonName], `<span id=${idTaxonName}>${taxonName}</span>`);
         i++;
