@@ -41,6 +41,7 @@ var testHarness = false;
 var testData = false //flag to enable test data for development and debugging
 var surveyBlocksLady = false; //flag a lady beetle atlas survey block map
 var surveyBlocksEAME = false; //flag an EAME survey block map
+var taxaBreakout = 0; //flag to break sub-taxa into separate layers with counts.
 
 //for standalone use
 function addMap() {
@@ -126,7 +127,7 @@ function addMap() {
 */
 function MapOverlayAdd(e) {
   //console.log('MapOverlayAdd', e.layer.options.name);
-  e.layer.bringToBack(); //push the just-added layer to back
+  if (typeof e.layer.bringToBack === 'function') {e.layer.bringToBack();} //push the just-added layer to back
   geoGroup.eachLayer(layer => {
     //console.log('geoGroup', layer.options.name);
     if (layer.options.name != e.layer.options.name) {
@@ -542,74 +543,117 @@ function getTestData(file, taxonName) {
 *
 * None of it makes any sense, however.
 */
-function addValOccCanvas(taxonName=false) {
+function addValOccByTaxon(taxonName=false) {
 
-    console.log(`addValOccCanvas(${taxonName})`);
+    console.log(`addValOccByTaxon(${taxonName})`);
 
     var baseUrl = 'https://biocache-ws.vtatlasoflife.org/occurrences/search';
     var pageSize = `&pageSize=${xhrRecsPerPage}`;
     if (!taxonName) {taxonName = getCanonicalName();}
     var toks = taxonName.split(" ");
-    var q = '?q=';
-    //q = `?q=${taxonName}`; //q=taxonName alone does not limit to exact match. need to use fq or logical AND, see below
-    toks.forEach((val,idx,arr) => {
-      q += val;
-      if (arr.length > 1 && idx < (arr.length-1)) {q += ' AND ';}
-    })
-    var fq = ''; //`&fq=year:2018&fq=basis_of_record:PreservedSpecimen`;
+    var q = `?q=${taxonName}`; //q=taxonName alone does not limit to exact match. need to use fq or logical AND, see below
+    var fq = ``; //`&fq=year:2018&fq=basis_of_record:PreservedSpecimen`;
     /*
     This doesn't handle higher-order taxa than genus
     if (toks[0]) fq = `&fq=genus:${toks[0]}`;
     if (toks[1]) fq += `&fq=species:${taxonName}`;
     if (toks[2]) fq += `&fq=subspecies:${taxonName}`;
     */
-    /*
-    var lat = `&lat:`;
-    var lon = `&lon:`;
-    var radius = `&rad:10`;
-    var valUrl = baseUrl + taxonUrl + pageSize + lat + lon + radius;
-    */
-    var wkt = `&wkt=${vtWKT}`;
-    var valUrl = baseUrl + q + fq + pageSize + wkt;
+    //var wkt = `&wkt=${vtWKT}`; var valUrl = baseUrl + q + fq + pageSize + wkt;
+    var valUrl = baseUrl + q + fq + pageSize;
     if(document.getElementById("apiUrlLabel")) {document.getElementById("apiUrlLabel").innerHTML = (valUrl);}
 
-    console.log(`addValOccCanvas API query:`, baseUrl + q + fq);
+    console.log(`addValOccByTaxon API query for taxonName ${taxonName}:`, baseUrl + q + fq);
 
     // start a new chain of fetch events
-    initXhrRequest(valUrl, taxonName);
+    initOccRequest(valUrl, taxonName);
 }
 
-function initXhrRequest(url, taxonName) {
-    var valXHR = new XMLHttpRequest();
+/*
+  GET VAL occurrences by LSID
+*/
+function addValOccByLsid(taxonName, lsid) {
 
-    //console.log(`initXhrRequest(${url})`);
+    console.log(`addValOccByLsid(${taxonName}, ${lsid})`);
+
+    var baseUrl = 'https://biocache-ws.vtatlasoflife.org/occurrences/search';
+    var pageSize = `&pageSize=${xhrRecsPerPage}`;
+    var q = `?q=lsid:${lsid}`;
+    var valUrl = baseUrl + q + pageSize;
+    if(document.getElementById("apiUrlLabel")) {document.getElementById("apiUrlLabel").innerHTML = (valUrl);}
+
+    console.log(`addValOccByLsid API query for taxonName ${taxonName} ==> lsid:${lsid}`, valUrl);
+
+    // start a new chain of fetch events
+    initOccRequest(valUrl, taxonName);
+}
+
+/*
+  initiate a chain of events to lookup taxonName for LSID and call biocache-ws with LSID...
+*/
+function getBieSpeciesCallBiocacheLsid(taxonName) {
+    var baseUrl = 'https://bie-ws.vtatlasoflife.org/species/';
+    if (!taxonName) {taxonName = getCanonicalName();}
+    var url = baseUrl + taxonName;
+    var bieXHR = new XMLHttpRequest();
 
     //handle request responses here in this callback
-    valXHR.onreadystatechange = function() {
+    bieXHR.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
-            xhrResults(this, url, taxonName);
+            bieResults(this, url, taxonName);
+        } else if (200 != this.status) {
+          console.log(`getBieRequest status: ${this.status}`);
+        }
+    };
+
+    bieXHR.open("GET", url, true);
+    bieXHR.setRequestHeader("Referrer", "http://localhost/");
+    bieXHR.send();
+}
+
+/*
+  It appears that bie-ws returns a single-object always, or an error.
+*/
+function bieResults(bieXHR, url, taxonName) { //static input args from initXHR
+  var bieJson = JSON.parse(bieXHR.response);
+
+  if (bieJson.classification.scientificName == taxonName ||
+    bieJson.taxonConcept.nameString == taxonName) {
+      addValOccByLsid(taxonName, bieJson.taxonConcept.guid);
+    }
+}
+
+function initOccRequest(url, taxonName) {
+    var occXHR = new XMLHttpRequest();
+
+    //handle request responses here in this callback
+    occXHR.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+            occResults(this, url, taxonName);
+        } else if (200 != this.status) {
+          console.log(`initOccRequest status: ${this.status}`);
         }
     };
 
     //load the first N records of data, which initiates subsequent page loads
-    loadPage(valXHR, url, taxonName, 0);
+    loadPage(occXHR, url, taxonName, 0);
 }
 
-function loadPage(valXHR, url, taxonName, startIndex) {
-    valXHR.open("GET", url+`&startIndex=${startIndex}`, true);
+function loadPage(occXHR, url, taxonName, startIndex) {
+    occXHR.open("GET", url+`&startIndex=${startIndex}`, true);
     /*
      * NOTE: the VAL ALA site does not respond with a "Content-type" header.  We only get an
      * "x-requested-with" pre-flight header response.  This means we can't send a *request* having this header.
      * The two lines beloew, taken from the iNat code, asked the server to send us JSON.
      * For VAL, we let the reponse return as text and then we JSON.parse(response).
      */
-    //valXHR.responseType = 'json';  //looks like you need to add this after the open, and use 'reponse' above, not 'responseText'
-    //valXHR.setRequestHeader("Content-type", "application/json");
-    valXHR.send();
+    //occXHR.responseType = 'json';  //looks like you need to add this after the open, and use 'reponse' above, not 'responseText'
+    //occXHR.setRequestHeader("Content-type", "application/json");
+    occXHR.send();
 }
 
-function xhrResults(valXHR, url, taxonName) {
-    var jsonRes = JSON.parse(valXHR.response);
+async function occResults(occXHR, url, taxonName) {
+    var jsonRes = JSON.parse(occXHR.response);
     var totr = jsonRes.totalRecords; cmTotal[taxonName] = jsonRes.totalRecords;
     var perp = jsonRes.pageSize;
     var startIdx = jsonRes.startIndex;
@@ -619,38 +663,50 @@ function xhrResults(valXHR, url, taxonName) {
     if (document.getElementById("jsonResults")) {
         document.getElementById("jsonResults").innerHTML = `total ${taxonName}: ${totr}  | ${taxonName} loaded: ${netr}`;
         }
-    //console.log(`xhrResults | requested taxon: ${taxonName} | result:`);
+    //console.log(`occResults | requested taxon: ${taxonName} | result:`);
     //console.dir(jsonRes);
-    updateMap(jsonRes.occurrences, taxonName);
+    await updateMap(jsonRes.occurrences, taxonName);
     if (totr > netr) {
-        loadPage(valXHR, url, taxonName, netr+1);
+        loadPage(occXHR, url, taxonName, netr+1);
     } else {
-        valXHR.abort(); //does this clean up memory?
+        occXHR.abort(); //does this clean up memory?
     }
 }
 
-function updateMap(valJsonData, taxonName) {
-    //console.log(`updateMap(${taxonName})`);
-    //console.log(`updateMap - cmGroup:`);
-    //console.dir(cmGroup);
-    for (var i = 0; i < valJsonData.length; i++) {
+/*
+  2021-06-07 Updates to add an API call to bie-ws first to get the LSID for taxa first. This emulates the
+  ALA species lookup behavior and appears to work.
+
+  This now automatically breaks taxa into sub-taxa. To disable this feature, set the global flag
+
+    taxaBreakout = 0;
+*/
+async function updateMap(occJsonArr, taxonName) {
+    var idTaxonName = taxonName.split(' ').join('_'); //this is updated later if we got multiple scientificNames for one taxonName
+    var sciName = taxonName; //this is updated later if we got multiple scientificNames for one taxonName
+    var idSciName;
+
+    for (var i = 0; i < occJsonArr.length; i++) {
+        var occJson = occJsonArr[i];
+
         //filter out records witout lat/lon location
-        if (!valJsonData[i].decimalLatitude || !valJsonData[i].decimalLongitude) {
-            console.log(`WARNING: Occurrence Record without Lat/Lon values: ${valJsonData[i]}`);
+        if (!occJson.decimalLatitude || !occJson.decimalLongitude) {
+            console.log(`WARNING: Occurrence Record without Lat/Lon values: ${occJson}`);
             return;
         }
 
-        cmCount[taxonName]++;
+        if (taxaBreakout) sciName = occJson.scientificName
+        idSciName = sciName.split(' ').join('_');
+        if (typeof cmCount[sciName] === 'undefined') {cmCount[sciName] = 0;}
+        cmCount[sciName]++;
         cmCount['all']++;
 
-        //console.log(`${taxonName} | ${cmCount[taxonName]} | lat: ${valJsonData[i].decimalLatitude} | lon: ${valJsonData[i].decimalLongitude}`);
-
-        var llLoc = L.latLng(valJsonData[i].decimalLatitude, valJsonData[i].decimalLongitude);
+        var llLoc = L.latLng(occJson.decimalLatitude, occJson.decimalLongitude);
 
         var popup = L.popup({
             maxHeight: 200,
             keepInView: true,
-        }).setContent(occurrencePopupInfo(valJsonData[i], cmCount[taxonName]));
+        }).setContent(occurrencePopupInfo(occJson, cmCount[sciName]));
 
         var marker = L.circleMarker(llLoc, {
             //renderer: myRenderer, //using this puts markers behind overlays. do we need it? We do not.
@@ -659,35 +715,44 @@ function updateMap(valJsonData, taxonName) {
             color: "black", //border color
             weight: 1, //border thickness
             radius: cmRadius,
-            index: cmCount[taxonName],
-            occurrence: valJsonData[i].species,
-            time: getDateYYYYMMDD(valJsonData[i].eventDate)
-        }).bindPopup(popup); //(occurrencePopupInfo(valJsonData[i], cmCount[taxonName]));
+            index: cmCount[sciName],
+            occurrence: occJson.scientificName, //occJson.species,
+            time: getDateYYYYMMDD(occJson.eventDate)
+        }).bindPopup(popup);
 
         marker.bringToFront(); //this is not necessary, currently. can't hurt though.
 
-        cmGroup[taxonName].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
+        if (typeof cmGroup[sciName] === 'undefined') {
+          console.log(`cmGroup[${sciName}] is undefined...adding.`);
+          cmGroup[sciName] = await L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
+          await speciesLayerControl.addOverlay(cmGroup[sciName], `<span id=${idSciName}>${sciName}</span>`);
+          cmGroup[sciName].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
+        } else {
+          cmGroup[sciName].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
+        }
 
         if (testHarness) {
-            marker.bindTooltip(`${cmCount[taxonName]}`, {opacity: 0.9});
+            marker.bindTooltip(`${cmCount[sciName]}`, {opacity: 0.9});
         } else {
-            if (valJsonData[i].eventDate) {
-                marker.bindTooltip(`${taxonName}<br>${getDateYYYYMMDD(valJsonData[i].eventDate)}`);
+            if (occJson.eventDate) {
+                marker.bindTooltip(`${sciName}<br>${getDateYYYYMMDD(occJson.eventDate)}`);
             } else {
-                marker.bindTooltip(`${taxonName}<br>No date supplied.`);
+                marker.bindTooltip(`${sciName}<br>No date supplied.`);
             }
         }
-    }
+
+        if (document.getElementById(idSciName)) {
+            //console.log(idSciName, sciName, cmCount[sciName], cmTotal[taxonName]);
+            document.getElementById(idSciName).innerHTML = `${sciName} (${cmCount[sciName]}/${cmTotal[taxonName]})`;
+        }
+        //console.log(sciName, cmCount[sciName], cgColor[taxonName], cmTotal[taxonName]);
+
+    } //end for-loop
 
     if (document.getElementById("jsonResults")) {
         document.getElementById("jsonResults").innerHTML += ` | records mapped: ${cmCount['all']}`;
     }
 
-    var idTaxonName = taxonName.split(' ').join('_');
-
-    if (document.getElementById(idTaxonName)) {
-        document.getElementById(idTaxonName).innerHTML = `${taxonName} (${cmCount[taxonName]}/${cmTotal[taxonName]})`;
-    }
 }
 
 /*
@@ -795,7 +860,7 @@ export function getValOccCanvas(map, taxonName) {
         cgColor[taxonName] = cmColors[0];
         cmCount[taxonName] = 0;
         cmTotal[taxonName] = 0;
-        addValOccCanvas(taxonName);
+        getBieSpeciesCallBiocacheLsid(taxonName);
         if (!boundaryLayerControl) {addBoundaries();}
         //if (!sliderControl) {addTimeSlider(taxonName);}
         if (!speciesLayerControl) {
@@ -830,7 +895,7 @@ if (document.getElementById("valStandalone")) {
             } else {
               const taxonName = getCanonicalName();
               cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-              addValOccCanvas();
+              getBieSpeciesCallBiocacheLsid();
             }
         });
 
@@ -889,7 +954,7 @@ if (document.getElementById("valLoadOnOpen")) {
         valMap.options.minZoom = 8;
         valMap.options.maxZoom = 17;
         //initValOccCanvas();
-        //addValOccCanvas('Bombus borealis');
+        //getBieSpeciesCallBiocacheLsid('Bombus borealis');
         if (!boundaryLayerControl) {addBoundaries();}
         if (typeof speciesObj != "object") {
             alert('Please pass an object literal like [map-page-url]?species={"Turdus migratorius":"#800000"}');
@@ -932,13 +997,19 @@ function getSpeciesListData(argSpecies = false) {
         argSpecies = speciesList;
     }
 
-    Object.keys(argSpecies).forEach(function(taxonName) {
+    //allow an object-value of 'breakout' to set that behavior. use it and delete it.
+    if (typeof argSpecies.taxaBreakout != 'undefined') {
+      taxaBreakout = argSpecies.taxaBreakout;
+      delete argSpecies.taxaBreakout;
+    }
+
+    Object.keys(argSpecies).forEach(async function(taxonName) {
         cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-        cgColor[taxonName] = argSpecies[taxonName]; //define circleMarker color for each species mapped
         cmCount[taxonName] = 0;
+        cgColor[taxonName] = argSpecies[taxonName]; //define circleMarker color for each species mapped
         cmTotal[taxonName] = 0;
-        console.log(`Add species group ${taxonName} with color ${cgColor[taxonName]}`);
-        addValOccCanvas(taxonName);
+        console.log(`getSpeciesListData: Add species group ${taxonName} with color ${argSpecies[taxonName]}`);
+        await getBieSpeciesCallBiocacheLsid(taxonName);
         var idTaxonName = taxonName.split(' ').join('_');
         speciesLayerControl.addOverlay(cmGroup[taxonName], `<span id=${idTaxonName}>${taxonName}</span>`);
         i++;
