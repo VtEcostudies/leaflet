@@ -27,7 +27,7 @@ var basemapLayerControl = false;
 var boundaryLayerControl = false;
 var speciesLayerControl = false;
 var sliderControl = false;
-var myRenderer = L.canvas({ padding: 0.5 }); //make global so we can clear the canvas before updates...
+//var myRenderer = L.canvas({ padding: 0.5 }); //make global so we can clear the canvas before updates...
 var xhrRecsPerPage = 1000; //the number of records to load per ajax request.  more is faster.
 var totalRecords = 0;
 var vtWKT = "POLYGON((-73.3427 45.0104,-73.1827 45.0134,-72.7432 45.0153,-72.6100 45.0134,-72.5551 45.0075,-72.4562 45.0090,-72.3113 45.0037,-72.0964 45.0066,-71.9131 45.0070,-71.5636 45.0138,-71.5059 45.0138,-71.5294 44.9748,-71.4949 44.9123,-71.5567 44.8296,-71.6281 44.7506,-71.6061 44.7077,-71.5677 44.6481,-71.5388 44.5817,-71.6006 44.5533,-71.5746 44.5308,-71.5883 44.4955,-71.6556 44.4504,-71.7146 44.4093,-71.7957 44.3975,-71.8163 44.3563,-71.8698 44.3327,-71.9138 44.3484,-71.9865 44.3386,-72.0346 44.3052,-72.0428 44.2432,-72.0662 44.1930,-72.0360 44.1349,-72.0580 44.0698,-72.1101 44.0017,-72.0937 43.9671,-72.1252 43.9088,-72.1733 43.8682,-72.1994 43.7899,-72.1994 43.7899,-72.2392 43.7384,-72.3010 43.7056,-72.3271 43.6391,-72.3436 43.5893,-72.3793 43.5814,-72.3972 43.5027,-72.3807 43.4988,-72.3999 43.4150,-72.4123 43.3601,-72.3903 43.3591,-72.4081 43.3282,-72.3999 43.2762,-72.4370 43.2342,-72.4493 43.1852,-72.4480 43.1311,-72.4507 43.0679,-72.4438 43.0067,-72.4699 42.9846,-72.5276 42.9645,-72.5331 42.8951,-72.5633 42.8639,-72.5098 42.7863,-72.5166 42.7652,-72.4741 42.7541,-72.4590 42.7289,-73.2761 42.7465,-73.2912 42.8025,-73.2850 42.8357,-73.2678 43.0679,-73.2472 43.5022,-73.2561 43.5615,-73.2939 43.5774,-73.3049 43.6271,-73.3557 43.6271,-73.3976 43.5675,-73.4326 43.5883,-73.4285 43.6351,-73.4079 43.6684,-73.3907 43.7031,-73.3516 43.7701,-73.3928 43.8207,-73.3832 43.8533,-73.3969 43.9033,-73.4086 43.9365,-73.4134 43.9795,-73.4381 44.0427,-73.4141 44.1058,-73.3928 44.1921,-73.3427 44.2393,-73.3186 44.2467,-73.3406 44.3484,-73.3385 44.3690,-73.2946 44.4328,-73.3296 44.5367,-73.3832 44.5919,-73.3770 44.6569,-73.3681 44.7477,-73.3317 44.7857,-73.3324 44.8043,-73.3818 44.8398,-73.3564 44.9040,-73.3392 44.9181,-73.3372 44.9643,-73.3537 44.9799,-73.3447 45.0046,-73.3447 45.0109,-73.3426 45.0104,-73.3427 45.0104))";
@@ -574,8 +574,6 @@ function addValOccByTaxon(taxonName=false) {
 */
 function addValOccByLsid(taxonName, lsid) {
 
-    //console.log(`addValOccByLsid(${taxonName}, ${lsid})`);
-
     var baseUrl = 'https://biocache-ws.vtatlasoflife.org/occurrences/search';
     var pageSize = `&pageSize=${xhrRecsPerPage}`;
     var q = `?q=lsid:${lsid}`;
@@ -603,8 +601,8 @@ function getBieSpeciesAddValOccByLsid(taxonName) {
     bieXHR.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
             bieResults(this, url, taxonName);
-        } else if (200 != this.status) {
-          console.log(`getBieRequest status: ${this.status}`);
+        } else if (this.status > 299) {
+          console.log(`getBieRequest(${taxonName}) --> ${url} | readyState: ${this.readyState} | status: ${this.status}`);
         }
     };
 
@@ -619,6 +617,10 @@ function getBieSpeciesAddValOccByLsid(taxonName) {
 function bieResults(bieXHR, url, taxonName) { //static input args from initXHR
   var bieJson = JSON.parse(bieXHR.response);
 
+  if (document.getElementById("bieUrlLabel")) {
+      document.getElementById("bieUrlLabel").innerHTML = `${taxonName} ~ ${url}`;
+  }
+
   if (bieJson.classification.scientificName == taxonName ||
     bieJson.taxonConcept.nameString == taxonName) {
       addValOccByLsid(taxonName, bieJson.taxonConcept.guid);
@@ -632,8 +634,8 @@ function initOccRequest(url, taxonName) {
     occXHR.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
             occResults(this, url, taxonName);
-        } else if (200 != this.status) {
-          console.log(`initOccRequest status: ${this.status}`);
+        } else if (this.status > 299) {
+          console.log(`initOccRequest(${taxonName}) --> ${url} |  readyState: ${this.readyState} | status: ${this.status}`);
         }
     };
 
@@ -669,6 +671,7 @@ async function occResults(occXHR, url, taxonName) {
     //console.dir(jsonRes);
     await updateMap(jsonRes.occurrences, taxonName);
     if (totr > netr) {
+        console.log('occValMap::occResults calling loadPage for net', netr+1, 'of tot', totr);
         loadPage(occXHR, url, taxonName, netr+1);
     } else {
         occXHR.abort(); //does this clean up memory?
@@ -693,8 +696,10 @@ async function updateMap(occJsonArr, taxonName) {
 
         //filter out records witout lat/lon location
         if (!occJson.decimalLatitude || !occJson.decimalLongitude) {
-            console.log(`WARNING: Occurrence Record without Lat/Lon values: ${occJson}`);
-            return;
+            if (typeof cmCount['missing'] === 'undefined') {cmCount['missing'] = 0;}
+            cmCount['missing']++;
+            console.log('WARNING: Occurrence Record without Lat/Lon values:', occJson.uuid, 'missing:', cmCount['missing'], 'count:', cmCount['all']);
+            continue;
         }
 
         if (taxaBreakout) sciName = occJson.scientificName
@@ -727,7 +732,7 @@ async function updateMap(occJsonArr, taxonName) {
         if (typeof cmGroup[sciName] === 'undefined') {
           console.log(`cmGroup[${sciName}] is undefined...adding.`);
           cmGroup[sciName] = await L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-          await speciesLayerControl.addOverlay(cmGroup[sciName], `<span id=${idSciName}>${sciName}</span>`);
+          await speciesLayerControl.addOverlay(cmGroup[sciName], `<label id="${idSciName}">${sciName}</label>`);
           cmGroup[sciName].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
         } else {
           cmGroup[sciName].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
@@ -742,19 +747,21 @@ async function updateMap(occJsonArr, taxonName) {
                 marker.bindTooltip(`${sciName}<br>No date supplied.`);
             }
         }
-
-        if (document.getElementById(idSciName)) {
-            //console.log(idSciName, sciName, cmCount[sciName], cmTotal[taxonName]);
-            document.getElementById(idSciName).innerHTML = `${sciName} (${cmCount[sciName]}/${cmTotal[taxonName]})`;
-        }
-        //console.log(sciName, cmCount[sciName], cgColor[taxonName], cmTotal[taxonName]);
-
     } //end for-loop
 
     if (document.getElementById("jsonResults")) {
         document.getElementById("jsonResults").innerHTML += ` | records mapped: ${cmCount['all']}`;
     }
 
+    //cmGroup's keys are sciNames, not elementIds...
+    var id = null;
+    Object.keys(cmGroup).forEach((sciName) => {
+      id = sciName.split(' ').join('_');
+      if (document.getElementById(id) && sciName.includes(taxonName)) {
+          console.log(`-----match----->> ${id} | ${sciName}`, cmCount[sciName], cmTotal[taxonName]);
+          document.getElementById(id).innerHTML = `${sciName} (${cmCount[sciName]}/${cmTotal[taxonName]})`;
+      }
+    });
 }
 
 /*
@@ -868,7 +875,7 @@ export function getValOccCanvas(map, taxonName) {
         if (!speciesLayerControl) {
             speciesLayerControl = L.control.layers().addTo(valMap);
             var idTaxonName = taxonName.split(' ').join('_');
-            speciesLayerControl.addOverlay(cmGroup[taxonName], `<span id=${idTaxonName}>${taxonName}</span>`);
+            speciesLayerControl.addOverlay(cmGroup[taxonName], `<span id="${idTaxonName}">${taxonName}</span>`);
             speciesLayerControl.setPosition("bottomright");
         }
     } else {
@@ -1014,7 +1021,7 @@ function getSpeciesListData(argSpecies = false) {
         console.log(`getSpeciesListData: Add species group ${taxonName} with color ${argSpecies[taxonName]}`);
         await getBieSpeciesAddValOccByLsid(taxonName);
         var idTaxonName = taxonName.split(' ').join('_');
-        speciesLayerControl.addOverlay(cmGroup[taxonName], `<span id=${idTaxonName}>${taxonName}</span>`);
+        speciesLayerControl.addOverlay(cmGroup[taxonName], `<span id="${idTaxonName}">${taxonName}</span>`);
         i++;
     });
 }
