@@ -42,6 +42,7 @@ var testData = false //flag to enable test data for development and debugging
 var surveyBlocksLady = false; //flag a lady beetle atlas survey block map
 var surveyBlocksEAME = false; //flag an EAME survey block map
 var taxaBreakout = 0; //flag to break sub-taxa into separate layers with counts.
+var baseMapDefault = null;
 
 //for standalone use
 function addMap() {
@@ -100,7 +101,8 @@ function addMap() {
         attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
       });
 
-    valMap.addLayer(streets);
+    baseMapDefault = esriTopo; //for use elsewhere, if necessary
+    valMap.addLayer(baseMapDefault); //and start with that one
 
     if(basemapLayerControl === false) {
         basemapLayerControl = L.control.layers().addTo(valMap);
