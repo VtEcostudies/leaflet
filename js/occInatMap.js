@@ -39,7 +39,6 @@ var townLayer = false;
 var bioPhysicalLayer = false;
 //var kmlGroup = false; //this was global.  made it function scope so it's garbage collected.  global not necessary b/c it's used in one function.
 var geoGroup = false; //geoJson boundary group for ZIndex management
-var inatGroup = false; //inat tileLayer group for testing
 var testHarness = false;
 var testData = false //flag to enable test data for development and debugging
 var surveyBlocksLady = false; //flag a lady beetle atlas survey block map
@@ -131,10 +130,10 @@ function addMap() {
     basemapLayerControl.addBaseLayer(esriWorld, "ESRI Imagery");
     basemapLayerControl.addBaseLayer(esriTopo, "ESRI Topo Map");
     basemapLayerControl.addBaseLayer(openTopo, "Open Topo Map");
-/*
+
     basemapLayerControl.addBaseLayer(inatGrid, "iNat Grid base");
     basemapLayerControl.addBaseLayer(inatPoints, "iNat Points base");
-*/
+
     basemapLayerControl.addOverlay(inatGrid, "iNat Grid");
     basemapLayerControl.addOverlay(inatPoints, "iNat Points");
 
@@ -142,7 +141,6 @@ function addMap() {
 
     basemapLayerControl.setPosition("bottomright");
 /*
-    inatGroup = new L.FeatureGroup();
     if (inatWmsLayerControl === false) {
         inatWmsLayerControl = L.control.layers().addTo(valMap);
     }
