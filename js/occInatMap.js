@@ -497,11 +497,18 @@ function updateInatMap(iNatJsonData) {
 
   for (var i = 0; i < iNatJsonData.length; i++) {
     var occJson = iNatJsonData[i];
-    if (!occJson.geojson || !occJson.geojson.coordinates) {
-      console.log(`updateInatMap | NO geojson coordinates for UUID:`, occJson.uuid);
+    var llLoc = null;
+    if (occJson.geojson && occJson.geojson.coordinates) {
+      llLoc = L.latLng(occJson.geojson.coordinates[1], occJson.geojson.coordinates[0]);
+    } else if (occJson.location) {
+      console.log(`updateInatMap | NO geojson coordinates for URI:`, occJson.uri);
+      llArr = `${occJason.location}`.split(',');
+      llLoc = L.latLng(llArr[0], llArr[1]);
+    } else {
+      console.log(`updateInatMap | NO coordinates for URI:`, occJson.uri);
       continue;
     }
-    var llLoc = L.latLng(occJson.geojson.coordinates[1], occJson.geojson.coordinates[0]);
+
     cmCount['iNat']++;
     cmCount['all']++;
 
