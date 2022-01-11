@@ -1,5 +1,5 @@
 /*
-jtl 10/23/2018
+10/23/2018
 Leaflet experiment.
 Goals:
 - load a json array from iNat Ocurrence API and populate the map with point occurrence data
@@ -10,22 +10,42 @@ var cmIndex = 0; //a global counter for cmLayer array-objects
 var cmColor = {select:0, options:[{index:0, color:"blue", radius:10}, {index:1, color:"red", radius:7}, {index:2, color:"green", radius:3}]};
 var myMap = {};
 var myRenderer = L.canvas({ padding: 0.5 }); //make global so we can clear the canvas before updates...
+var baseLayerControl = false;
 
 //for standalone use
 function addMap() {
-    var myMap = L.map('mapid', {
+    myMap = L.map('mapid', {
             center: vtCenter,
             zoom: 8,
             crs: L.CRS.EPSG3857 //have to do this to conform to USGS maps
         });
 
-    L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
-        maxZoom: 20,
-        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
+    var attribSmall =  '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>, ' +
             '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
-            'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+            '© <a href="https://www.mapbox.com/">Mapbox</a>';
+
+    var mapBoxAccessToken = 'pk.eyJ1Ijoiamxvb21pc3ZjZSIsImEiOiJjanB0dzVoZ3YwNjlrNDNwYm9qN3NmNmFpIn0.tyJsp2P7yR2zZV4KIkC16Q';
+
+    var streets = L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=${mapBoxAccessToken}`, {
+        maxZoom: 20,
+        attribution: attribSmall,
         id: 'mapbox.streets'
-    }).addTo(myMap);
+    });
+
+    var dark = L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/dark-v10/tiles/{z}/{x}/{y}?access_token=${mapBoxAccessToken}`, {
+        maxZoom: 20,
+        attribution: attribSmall,
+        id: 'mapbox.dark-v10'
+    });
+
+    myMap.addLayer(dark); //this sets the base layer like .addTo(map)
+    if (baseLayerControl === false) {
+        baseLayerControl = L.control.layers().addTo(myMap);
+    }
+    baseLayerControl.addBaseLayer(streets, "Mapbox Streets");
+    baseLayerControl.addBaseLayer(dark, "Mapbox Dark");
+    baseLayerControl.setPosition("bottomright");
+
 }
 
 /*
@@ -44,7 +64,7 @@ function addInatOccCanvas() {
     document.getElementById("apiUrlLabel").innerHTML = (iNatUrl);
 
     if (cmColor.select < 2) {cmColor.select++;} else {cmColor.select=0;}
-    
+
     //remove all circleMarkers first...
     cmLayer.forEach(function(cm, index) {
         cm.remove(); //remove the marker from the map
@@ -67,9 +87,10 @@ function loadPage(url, page, callback) {
         }
     };
     xhttp.open("GET", url+`&page=${page}`, true);
-    xhttp.responseType = 'json';  //looks like you need to add this after the open, and use 'reponse' above, not 'responseText'
-    xhttp.setRequestHeader("Content-type", "application/json");
-    xhttp.send();    
+    //xhttp.responseType = 'json';  //looks like you need to add this after the open, and use 'reponse' above, not 'responseText'
+    xhttp.setRequestHeader("Content-type", "text/plain");
+    xhttp.setRequestHeader('Access-Control-Allow-Origin', 'http://localhost');
+    xhttp.send();
 }
 
 function ajaxResults(xhttp, url, pageNext) {
@@ -89,9 +110,9 @@ function ajaxResults(xhttp, url, pageNext) {
 
 function updateMap(iNatJsonData) {
 
-for (var i = 0; i < iNatJsonData.length; i += 1) {
+  for (var i = 0; i < iNatJsonData.length; i += 1) {
     var llLoc = L.latLng(iNatJsonData[i].geojson.coordinates[1], iNatJsonData[i].geojson.coordinates[0]);
-	cmLayer[cmIndex++] = L.circleMarker(llLoc, {
+    cmLayer[cmIndex++] = L.circleMarker(llLoc, {
         renderer: myRenderer,
         radius: 3, //cmColor.options[cmColor.select].radius,
         color: "red" //cmColor.options[cmColor.select].color
@@ -103,9 +124,9 @@ for (var i = 0; i < iNatJsonData.length; i += 1) {
             ${iNatJsonData[i].observed_on_string||''}<br>
             Quality/Grade: ${iNatJsonData[i].quality_grade||''}<br>
             `);
+    }
 }
-    
-}
+
 /*
  * iNat uses lat/lng bbox.  just get those from leaflet map and return as object.
  */
@@ -148,4 +169,14 @@ export function addMapGetInatOcc() {
 export function getInatOccCanvas(map) {
     myMap = map;
     addInatOccCanvas();
+}
+
+//invoke standAlone module usage by detecting an element with id="standAlone"
+if (document.getElementById("standAlone")) {
+  window.addEventListener("load", function() {
+    addMap(); //show the map
+    document.getElementById("speciesSubmit").addEventListener("click", function() {
+      addInatOccCanvas();
+    });
+  });
 }

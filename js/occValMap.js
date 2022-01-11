@@ -1,5 +1,5 @@
 /*
-jtl 10/23/2018
+10/23/2018
 Leaflet experiment.
 Goals:
 - load a json array from VAL Data Portal Occurrence API and populate the map with point occurrence data

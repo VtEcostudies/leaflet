@@ -1,5 +1,5 @@
 /*
-jtl 10/22/2018
+10/22/2018
 Leaflet experiment.
 Goals:
 - load a json array from GBIF and populate the map with point occurrence data
@@ -44,7 +44,7 @@ function addGbifOccCanvas() {
     document.getElementById("apiUrlLabel").innerHTML = (gbifUrl);
 
     if (cmColor.select < 2) {cmColor.select++;} else {cmColor.select=0;}
-    
+
     //remove all circleMarkers first...
     cmLayer.forEach(function(cm, index) {
         cm.remove(); //remove the marker from the map
@@ -69,7 +69,7 @@ function loadPage(url, page, callback) {
     xhttp.open("GET", url+`&page=${page}`, true);
     xhttp.responseType = 'json';  //looks like you need to add this after the open, and use 'reponse' above, not 'responseText'
     xhttp.setRequestHeader("Content-type", "application/json");
-    xhttp.send();    
+    xhttp.send();
 }
 
 function ajaxResults(xhttp, url, pageNext) {
@@ -104,7 +104,7 @@ for (var i = 0; i < gbifJsonData.length; i += 1) {
             Quality/Grade: ${gbifJsonData[i].quality_grade||''}<br>
             `);
 }
-    
+
 }
 /*
  * iNat uses lat/lng bbox.  just get those from leaflet map and return as object.

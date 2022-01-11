@@ -1,15 +1,16 @@
 /*
-jtl 10/23/2018
-Leaflet experiment.
-Goals:
-- load a json array from VAL Data Portal Occurrence API and populate the map with point occurrence data
+occInatMap.js
+2022-01-10
+
+Display real time iNaturalist observations for VAL.
+
+Notes:
 
 Convert kml to geoJson:
   https://github.com/mapbox/togeojson
   - togeojson file.kml > file.geojson
 */
 import {getCanonicalName, getScientificName, getAllData} from "./gbifAutoComplete.js";
-import {colorsList, speciesList} from "./mapTheseSpecies.js";
 
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
 var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
@@ -21,15 +22,11 @@ var cmCount = {}; //a global counter for cmLayer array-objects across mutiple sp
 var cmTotal = {}; //a global total for cmLayer counts across species
 var cgColor = {}; //object of colors for separate species layers
 var cmColors = {0:"white",1:"green",2:"blue",3:"yellow",4:"orange",5:"purple",6:"cyan",7:"grey"};
-var cmRadius = zoomLevel/2;
+var cmRadius = 10;
 var valMap = {};
 var basemapLayerControl = false;
-var inatWmsLayerControl = false;
-var inatWmsLayerGroup = false;
 var boundaryLayerControl = false;
 var speciesLayerControl = false;
-var sliderControl = false;
-//var myRenderer = L.canvas({ padding: 0.5 }); //make global so we can clear the canvas before updates...
 var xhrRecsPerPage = 1000; //the number of records to load per ajax request.  more is faster.
 var totalRecords = 0;
 var vtWKT = "POLYGON((-73.3427 45.0104,-73.1827 45.0134,-72.7432 45.0153,-72.6100 45.0134,-72.5551 45.0075,-72.4562 45.0090,-72.3113 45.0037,-72.0964 45.0066,-71.9131 45.0070,-71.5636 45.0138,-71.5059 45.0138,-71.5294 44.9748,-71.4949 44.9123,-71.5567 44.8296,-71.6281 44.7506,-71.6061 44.7077,-71.5677 44.6481,-71.5388 44.5817,-71.6006 44.5533,-71.5746 44.5308,-71.5883 44.4955,-71.6556 44.4504,-71.7146 44.4093,-71.7957 44.3975,-71.8163 44.3563,-71.8698 44.3327,-71.9138 44.3484,-71.9865 44.3386,-72.0346 44.3052,-72.0428 44.2432,-72.0662 44.1930,-72.0360 44.1349,-72.0580 44.0698,-72.1101 44.0017,-72.0937 43.9671,-72.1252 43.9088,-72.1733 43.8682,-72.1994 43.7899,-72.1994 43.7899,-72.2392 43.7384,-72.3010 43.7056,-72.3271 43.6391,-72.3436 43.5893,-72.3793 43.5814,-72.3972 43.5027,-72.3807 43.4988,-72.3999 43.4150,-72.4123 43.3601,-72.3903 43.3591,-72.4081 43.3282,-72.3999 43.2762,-72.4370 43.2342,-72.4493 43.1852,-72.4480 43.1311,-72.4507 43.0679,-72.4438 43.0067,-72.4699 42.9846,-72.5276 42.9645,-72.5331 42.8951,-72.5633 42.8639,-72.5098 42.7863,-72.5166 42.7652,-72.4741 42.7541,-72.4590 42.7289,-73.2761 42.7465,-73.2912 42.8025,-73.2850 42.8357,-73.2678 43.0679,-73.2472 43.5022,-73.2561 43.5615,-73.2939 43.5774,-73.3049 43.6271,-73.3557 43.6271,-73.3976 43.5675,-73.4326 43.5883,-73.4285 43.6351,-73.4079 43.6684,-73.3907 43.7031,-73.3516 43.7701,-73.3928 43.8207,-73.3832 43.8533,-73.3969 43.9033,-73.4086 43.9365,-73.4134 43.9795,-73.4381 44.0427,-73.4141 44.1058,-73.3928 44.1921,-73.3427 44.2393,-73.3186 44.2467,-73.3406 44.3484,-73.3385 44.3690,-73.2946 44.4328,-73.3296 44.5367,-73.3832 44.5919,-73.3770 44.6569,-73.3681 44.7477,-73.3317 44.7857,-73.3324 44.8043,-73.3818 44.8398,-73.3564 44.9040,-73.3392 44.9181,-73.3372 44.9643,-73.3537 44.9799,-73.3447 45.0046,-73.3447 45.0109,-73.3426 45.0104,-73.3427 45.0104))";
@@ -37,16 +34,19 @@ var stateLayer = false;
 var countyLayer = false;
 var townLayer = false;
 var bioPhysicalLayer = false;
-//var kmlGroup = false; //this was global.  made it function scope so it's garbage collected.  global not necessary b/c it's used in one function.
 var geoGroup = false; //geoJson boundary group for ZIndex management
-var testHarness = false;
-var testData = false //flag to enable test data for development and debugging
-var surveyBlocksLady = false; //flag a lady beetle atlas survey block map
-var surveyBlocksEAME = false; //flag an EAME survey block map
 var taxaBreakout = 0; //flag to break sub-taxa into separate layers with counts.
 var baseMapDefault = null;
-var stopData = false; //flag to abort data-loading before it finishes
-var inatYear = '2021';
+
+var inatYear = '2022';
+var intervalFn = null;
+var interval = 30000;
+var page_size = 100;
+var dataDays = 1;
+var vtOnly = 1;
+var runTimer = 1;
+var getObs = 1;
+var getIDs = 0;
 
 //for standalone use
 function addMap() {
@@ -140,15 +140,7 @@ function addMap() {
     console.log('done adding basemaps');
 
     basemapLayerControl.setPosition("bottomright");
-/*
-    if (inatWmsLayerControl === false) {
-        inatWmsLayerControl = L.control.layers().addTo(valMap);
-    }
 
-    inatWmsLayerControl.addOverlay(inatGrid, "iNat Grid");
-    inatWmsLayerControl.addOverlay(inatPoints, "iNat Points");
-    inatWmsLayerControl.setPosition("bottomright");
-*/
     valMap.on("zoomend", e => onZoomEnd(e));
     valMap.on("overlayadd", e => MapOverlayAdd(e));
 }
@@ -193,17 +185,10 @@ async function addBoundaries() {
     console.log("addBoundaries (geoJson) ...");
 
     geoGroup = new L.FeatureGroup();
-    addGeoJsonLayer('geojson/Polygon_VT_State_Boundary.geojson', "State", 0, boundaryLayerControl, geoGroup);
-    //addGeoJsonLayer('geojson/Polygon_VT_County_Boundaries.geojson', "Counties", 1, boundaryLayerControl, geoGroup, !surveyBlocksLady && !surveyBlocksEAME);
+    addGeoJsonLayer('geojson/Polygon_VT_State_Boundary.geojson', "State", 0, boundaryLayerControl, geoGroup).then((layer) => {stateLayer=layer;});
     addGeoJsonLayer('geojson/Polygon_VT_County_Boundaries.geojson', "Counties", 1, boundaryLayerControl, geoGroup);
     addGeoJsonLayer('geojson/Polygon_VT_Town_Boundaries.geojson', "Towns", 2, boundaryLayerControl, geoGroup);
     addGeoJsonLayer('geojson/Polygon_VT_Biophysical_Regions.geojson', "Biophysical Regions", 3, boundaryLayerControl, geoGroup);
-    if (surveyBlocksLady) {
-      addGeoJsonLayer('geojson/surveyblocksWGS84.geojson', "Survey Blocks - Lady Beetles", 4, boundaryLayerControl, geoGroup, surveyBlocksLady);
-    } else if (surveyBlocksEAME) {
-      addGeoJsonLayer('geojson/EAME_Priority_Blocks.geojson', "Survey Blocks - EAME", 5, boundaryLayerControl, geoGroup, surveyBlocksEAME);
-      //addGeoJsonLayer('geojson/EAME_Hay_Over_10.geojson', "Hay Coverage - EAME", 6, boundaryLayerControl, geoGroup);
-    }
 }
 
 function addGeoJsonLayer(file="test.geojson", layerName="Test", layerId = 0, layerControl=null, layerGroup=null, addToMap=false) {
@@ -253,6 +238,9 @@ function loadFile(file, mime="text/plain", callback) {
     xobj.send(null);
 }
 
+/*
+  An abortive attempt to handle clicks on stacked map objects.
+*/
 function getIntersectingFeatures(e) {
   var clickBounds = L.latLngBounds(e.latlng, e.latlng);
   var lcnt = 0;
@@ -307,6 +295,10 @@ function getIntersectingFeatures(e) {
   return html;
 }
 
+/*
+  Callback function for addGeoJsonLayer to define feature behavior of added
+  geoJson overlays on the Boundary Layer Control
+*/
 function onEachFeature(feature, layer) {
     layer.on('mousemove', function (event) {
       //console.log('mousemove', event);
@@ -327,113 +319,19 @@ function onEachFeature(feature, layer) {
         });
         */
     });
-    if (4 == layer.options.id) { //Lady Beetle Survey Blocks
-      if (feature.properties) {
-          var obj = feature.properties;
-          var tips = '';
-          var pops = '';
-          for (var key in obj) {
-            switch(key.substr(key.length - 4).toLowerCase()) { //last 4 characters of property
-              case 'name':
-                tips += `${obj[key]}<br>`;
-                break;
-              case 'type':
-        	      if (obj[key] == 'PRIORITY1') {
-        		      tips = '<b><u>LADY BEETLE SURVEY BLOCK - HIGH PRIORITY</u></b><br>' + tips;
-        	      } else if (obj[key] == 'PRIORITY') {
-                  tips = '<b><u>PRIORITY BLOCK</u></b><br>' + tips;
-                } else if (obj[key] == 'NONPRIOR') {
-                  tips = 'NON-PRIORITY BLOCK<br>' + tips;
-        	      } else {
-        	        tips = `${obj[key]}<br>` + tips;
-        	      }
-                break;
-            }
-            if (feature.properties.BLOCKNAME &&
-              (feature.properties.BLOCK_TYPE=='PRIORITY' || feature.properties.BLOCK_TYPE=='PRIORITY1'))
-            {
-              var name = feature.properties.BLOCKNAME;
-              var link = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
-              if (feature.properties.BLOCK_TYPE=='PRIORITY1') {
-                pops = `<b><u>LADY BEETLE SURVEY BLOCK - HIGH PRIORITY</u></b></br>`;
-              } else {
-                pops = `<b><u>PRIORITY BLOCK</u></b></br>`;
-              }
-              pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
-              pops += `<a target="_blank" href="https://val.vtecostudies.org/projects/lady-beetle-atlas/signup?surveyblock=${link}">Signup for ${name}</a>`
-            }
+    if (feature.properties) {
+        var obj = feature.properties;
+        var tips = '';
+        var pops = '';
+        for (var key in obj) { //iterate over feature properties
+          switch(key.substr(key.length - 4).toLowerCase()) { //last 4 characters of property
+            case 'name':
+              tips = `${obj[key]}<br>` + tips;
+              break;
           }
-          if (tips) {layer.bindTooltip(tips);}
-          if (pops) {layer.bindPopup(pops);}
-      }
-    } //end Lady Beetle Survey Blocks code
-    else if (5 == layer.options.id) { //EAME Survey Blocks
-      if (feature.properties) {
-          var obj = feature.properties;
-          var tips = ''; //toolTip text
-          var pops = ''; //popup text
-          for (var key in obj) { //iterate over feature properties
-            //switch(key.substr(key.length - 4).toLowerCase()) { //last 4 characters of property
-            switch(key.toUpperCase()) {
-              case 'BLOCKNAME':
-                tips += `Block Name: ${obj[key]}<br>`;
-                break;
-              case 'BLOCK_TYPE':
-        	      if (obj[key] == 'PRIORITY1') {
-        		      tips = '<b><u>EAME SURVEY BLOCK - HIGH PRIORITY</u></b><br>' + tips;
-        	      } else if (obj[key] == 'PRIORITY') {
-                  tips = '<b><u>EAME SURVEY BLOCK - PRIORITY</u></b><br>' + tips;
-                } else if (obj[key] == 'NONPRIOR') {
-                  tips = 'EAME SURVEY BLOCK - NON-PRIORITY<br>' + tips;
-        	      } else {
-        	        tips = `${obj[key]}<br>` + tips;
-        	      }
-                break;
-              case 'HAY_HECTARES':
-                tips += `Hay Coverage in Hectares: ${obj[key]}<br>`;
-                break;
-              default:
-                //tips += `${key}: ${obj[key]}<br>`;
-                break;
-            }
-            if (feature.properties.BLOCKNAME &&
-              (feature.properties.BLOCK_TYPE=='PRIORITY'
-              || feature.properties.BLOCK_TYPE=='PRIORITY1')
-              || feature.properties.BLOCK_TYPE=='NONPRIOR')
-            {
-              var name = feature.properties.BLOCKNAME;
-              var link = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
-              if (feature.properties.BLOCK_TYPE=='PRIORITY1') {
-                pops = `<b><u>EAME SURVEY BLOCK - HIGH PRIORITY</u></b></br>`;
-              } else if (feature.properties.BLOCK_TYPE=='PRIORITY') {
-                pops = `<b><u>EAME SURVEY BLOCK - PRIORITY</u></b></br>`;
-              } else {
-                pops = `<b><u>EAME SURVEY BLOCK - NON-PRIORITY</u></b></br>`;
-              }
-              pops += `<a target="_blank" href="https://val.vtecostudies.org/projects/eastern-meadowlark-blitz/adopt-a-survey-block?surveyblock=${link}">Signup for ${name}</a></br>`
-              pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/eame.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
-              if (feature.properties.HAY_HECTARES) {pops += `</br>Hay Coverage in Hectares: ${feature.properties.HAY_HECTARES}`;}
-            }
-          }
-          if (tips) {layer.bindTooltip(tips);}
-          if (pops) {layer.bindPopup(pops);}
-      } //end if (feature.properties)
-    } //end EAME Beetle Survey Blocks code
-    else { //handle all other layers' toolTips and popups
-      if (feature.properties) {
-          var obj = feature.properties;
-          var tips = '';
-          var pops = '';
-          for (var key in obj) { //iterate over feature properties
-            switch(key.substr(key.length - 4).toLowerCase()) { //last 4 characters of property
-              case 'name':
-                tips = `${obj[key]}<br>` + tips;
-                break;
-            }
-          }
-        if (tips) {layer.bindTooltip(tips);}
-        if (pops) {layer.bindPopup(pops);}
-      }
+        }
+      if (tips) {layer.bindTooltip(tips);}
+      if (pops) {layer.bindPopup(pops);}
     }
 }
 
@@ -467,30 +365,31 @@ function onStyle(feature) {
 }
 
 /*
- * https://github.com/dwilhelm89/LeafletSlider
+ * iNat uses lat/lng bbox.  just get those from leaflet map and return as object.
  */
-function addTimeSlider(taxonName) {
-    var taxonGroup = cmGroup[taxonName];
-
-    console.log(`addTimeSlider(${taxonName}) - layer.options: ${Object.keys(taxonGroup)}`);
-
-    sliderControl = L.control.sliderControl({position: "bottomleft", layer: taxonGroup, range: true});
-    valMap.addControl(sliderControl);
-    sliderControl.startSlider();
+function getMapLlExtents() {
+    var llne = valMap.getBounds().getNorthEast();
+    var llsw = valMap.getBounds().getSouthWest();
+    return {
+        nelat: llne.lat,
+        nelng: llne.lng,
+        swlat: llsw.lat,
+        swlng: llsw.lng
+    };
 }
 
 /*
  * Clear any markers from the map
  */
-function initValOccCanvas() {
-    //console.log(`initValOccCanvas()`);
+function initMap() {
+    //console.log(`initMap()`);
     cmCount['all'] = 0;
     //remove all circleMarkers from each group by clearing the layer
     Object.keys(cmGroup).forEach(function(key) {
         console.log(`Clear layer '${key}'`);
         cmGroup[key].clearLayers();
         console.log(`Remove control layer for '${key}'`);
-        if (speciesLayerControl) speciesLayerControl.removeLayer(cmGroup[key]);
+        //if (speciesLayerControl) speciesLayerControl.removeLayer(cmGroup[key]);
         delete cmGroup[key];
         delete cmCount[key];
         delete cmTotal[key];
@@ -501,247 +400,145 @@ function initValOccCanvas() {
     speciesLayerControl = false;
 }
 
-function getTestData(file, taxonName) {
-  //load test data
-  loadJSON(file, (data) => {
-    updateMap(data.occurrences, taxonName);
-  });
+function getStamp(offsetSecs=30) {
+  const loc = moment(moment().valueOf() -  offsetSecs * 1000).format('YYYY-MM-DDTHH:mm:ss');
+  const utc = moment.utc(moment().valueOf() - offsetSecs * 1000).format('YYYY-MM-DDTHH:mm:ss');
+  //console.log(`getStamp | local: ${loc} | utc: ${utc}`);
+  return utc;
+}
+
+function getDate(offsetDays=1) {
+  const date = moment(moment().valueOf() -  offsetDays*1000*3600*24).format('YYYY-MM-DD');
+  console.log(`getDate | ${date}`);
+  return date;
 }
 
 /*
-* query VAL Occ API for json array of occurrence data
-*
-* add array of circleMarkers to canvas renderer...
-*
-* See these for ideas on how to get an exact match from biocache-ws
-* https://biocache-ws.vtatlasoflife.org/oldapi
-* https://biocache-ws.vtatlasoflife.org/index/fields
-*
-* None of it makes any sense, however.
+  GET iNat Observations
+  https://api.inaturalist.org/v1/observations/?project_id=vermont-atlas-of-life&quality_grade=research
+  https://api.inaturalist.org/v1/observations/?project_id=vermont-atlas-of-life&quality_grade=needs_id
 */
-function addValOccByTaxon(taxonName=false) {
+function getInatObs(init=0) {
+  //var mapExt = getMapLlExtents();
+  var baseUrl = 'https://api.inaturalist.org/v1/observations';
+  var begDate = `?d1=${getStamp(30)}`; if (init & vtOnly) {begDate = `?d1=${getDate(dataDays)}`;}
+  var endDate = `&d2=${getStamp(0)}`;
+  var project = '&project_id=vermont-atlas-of-life';
+  var identified = '&current=true';
+  //var bbox = `&nelat=${mapExt.nelat}&nelng=${mapExt.nelng}&swlat=${mapExt.swlat}&swlng=${mapExt.swlng}`;
+  var order = '&order=desc&order_by=created_at';
+  var iNatUrl = baseUrl + begDate + order;
+  if (vtOnly) {iNatUrl = baseUrl + begDate + project + order;}
 
-    console.log(`addValOccByTaxon(${taxonName})`);
-
-    var baseUrl = 'https://biocache-ws.vtatlasoflife.org/occurrences/search';
-    var pageSize = `&pageSize=${xhrRecsPerPage}`;
-    if (!taxonName) {taxonName = getCanonicalName();}
-    var toks = taxonName.split(" ");
-    var q = `?q=${taxonName}`; //q=taxonName alone does not limit to exact match. need to use fq or logical AND, see below
-    var fq = ``; //`&fq=year:2018&fq=basis_of_record:PreservedSpecimen`;
-    /*
-    This doesn't handle higher-order taxa than genus
-    if (toks[0]) fq = `&fq=genus:${toks[0]}`;
-    if (toks[1]) fq += `&fq=species:${taxonName}`;
-    if (toks[2]) fq += `&fq=subspecies:${taxonName}`;
-    */
-    //var wkt = `&wkt=${vtWKT}`; var valUrl = baseUrl + q + fq + pageSize + wkt;
-    var valUrl = baseUrl + q + fq + pageSize;
-    if(document.getElementById("apiUrlLabel")) {document.getElementById("apiUrlLabel").innerHTML = (valUrl);}
-
-    console.log(`addValOccByTaxon API query for taxonName ${taxonName}:`, baseUrl + q + fq);
-
-    // start a new chain of fetch events
-    initOccRequest(valUrl, taxonName);
+  console.log('getInatObs', iNatUrl);
+  // start a new chain of fetch events
+  initOccRequest(iNatUrl);
 }
 
-/*
-  GET VAL occurrences by LSID
-*/
-function addValOccByLsid(taxonName, lsid) {
+function getInatIDs(init=0) {
+  //var mapExt = getMapLlExtents();
+  var baseUrl = 'https://api.inaturalist.org/v1/identifications';
+  var begDate = `?observation_created_d1=${getStamp(30)}`; if (init & vtOnly) {begDate = `?d1=${getDate(dataDays)}`;}
+  var endDate = `&observation_created_d2=${getStamp(0)}`;
+  var place = '&place_id=47';
+  //var bbox = `&nelat=${mapExt.nelat}&nelng=${mapExt.nelng}&swlat=${mapExt.swlat}&swlng=${mapExt.swlng}`;
+  var order = '&order=desc&order_by=created_at';
+  var iNatUrl = baseUrl + begDate + order;
+  if (vtOnly) {iNatUrl = baseUrl + begDate + place + order;}
 
-    var baseUrl = 'https://biocache-ws.vtatlasoflife.org/occurrences/search';
-    var pageSize = `&pageSize=${xhrRecsPerPage}`;
-    var q = `?q=lsid:${lsid}`;
-    var valUrl = baseUrl + q + pageSize;
-    if(document.getElementById("apiUrlLabel")) {document.getElementById("apiUrlLabel").innerHTML = (valUrl);}
-
-    console.log(`addValOccByLsid API query for taxonName ${taxonName} ==> lsid:${lsid}`, valUrl);
-
-    // start a new chain of fetch events
-    initOccRequest(valUrl, taxonName);
+  console.log('getInatIDs', iNatUrl);
+  // start a new chain of fetch events
+  initOccRequest(iNatUrl);
 }
 
-/*
-  initiate a chain of events to lookup taxonName for LSID and call biocache-ws with LSID...
-*/
-function getBieSpeciesAddValOccByLsid(taxonName) {
-    var baseUrl = 'https://bie-ws.vtatlasoflife.org/species/';
-    if (!taxonName) {taxonName = getCanonicalName();}
-    var url = baseUrl + taxonName;
-    var bieXHR = new XMLHttpRequest();
-
-    console.log(`getBieSpeciesAddValOccByLsid API query for LSID for ${taxonName}`, url);
-
-    //handle request responses here in this callback
-    bieXHR.onreadystatechange = function() {
-        if (this.readyState == 4 && this.status == 200) {
-            bieResults(this, url, taxonName);
-        } else if (this.status > 299) {
-          console.log(`getBieRequest(${taxonName}) --> ${url} | readyState: ${this.readyState} | status: ${this.status}`);
-        }
-    };
-
-    bieXHR.open("GET", url, true);
-    bieXHR.setRequestHeader("Referrer", "http://localhost/");
-    bieXHR.send();
-}
-
-/*
-  It appears that bie-ws returns a single-object always, or an error.
-*/
-function bieResults(bieXHR, url, taxonName) { //static input args from initXHR
-  var bieJson = JSON.parse(bieXHR.response);
-
-  if (document.getElementById("bieUrlLabel")) {
-      document.getElementById("bieUrlLabel").innerHTML = `${taxonName} ~ ${url}`;
-  }
-
-  if (bieJson.classification.scientificName == taxonName ||
-    bieJson.taxonConcept.nameString == taxonName) {
-      addValOccByLsid(taxonName, bieJson.taxonConcept.guid);
-    }
-}
-
-function initOccRequest(url, taxonName) {
+function initOccRequest(url) {
     var occXHR = new XMLHttpRequest();
 
     //handle request responses here in this callback
     occXHR.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
-            occResults(this, url, taxonName);
+            occResults(this, url);
         } else if (this.status > 299) {
-          console.log(`initOccRequest(${taxonName}) --> ${url} |  readyState: ${this.readyState} | status: ${this.status}`);
+          console.log(`initOccRequest(${url} |  readyState: ${this.readyState} | status: ${this.status}`);
         }
     };
 
-    //load the first N records of data, which initiates subsequent page loads
-    loadPage(occXHR, url, taxonName, 0);
-}
-
-function loadPage(occXHR, url, taxonName, startIndex) {
-    occXHR.open("GET", url+`&startIndex=${startIndex}`, true);
-    /*
-     * NOTE: the VAL ALA site does not respond with a "Content-type" header.  We only get an
-     * "x-requested-with" pre-flight header response.  This means we can't send a *request* having this header.
-     * The two lines beloew, taken from the iNat code, asked the server to send us JSON.
-     * For VAL, we let the reponse return as text and then we JSON.parse(response).
-     */
-    //occXHR.responseType = 'json';  //looks like you need to add this after the open, and use 'reponse' above, not 'responseText'
-    //occXHR.setRequestHeader("Content-type", "application/json");
-    occXHR.send();
-}
-
-async function occResults(occXHR, url, taxonName) {
-    var jsonRes = JSON.parse(occXHR.response);
-    var totr = jsonRes.totalRecords; cmTotal[taxonName] = jsonRes.totalRecords;
-    var perp = jsonRes.pageSize;
-    var startIdx = jsonRes.startIndex;
-    var netr = startIdx + perp;
-    if (netr > totr) {netr = totr;}
-    if (document.getElementById("apiUrlLabel")) {document.getElementById("apiUrlLabel").innerHTML = (url+`&startIndex=${startIdx}`);}
-    if (document.getElementById("jsonResults")) {
-        document.getElementById("jsonResults").innerHTML = `Total ${taxonName}: ${totr}  | ${taxonName} loaded: ${netr}`;
-        }
-    //console.log(`occResults | requested taxon: ${taxonName} | result:`);
-    //console.dir(jsonRes);
-    await updateMap(jsonRes.occurrences, taxonName);
-    if (totr > netr) {
-      if (!stopData) {
-        console.log('occValMap::occResults calling loadPage for net', netr+1, 'of tot', totr);
-        loadPage(occXHR, url, taxonName, netr+1);
-      } else {
-        occXHR.abort();
-      }
-    } else {
-        occXHR.abort(); //does this clean up memory?
-    }
+    //load the first page of data, which initiates subsequent page loads
+    loadPage(occXHR, url, 1);
 }
 
 /*
-  2021-06-07 Updates to add an API call to bie-ws first to get the LSID for taxa first. This emulates the
-  ALA species lookup behavior and appears to work.
-
-  This now automatically breaks taxa into sub-taxa. To disable this feature, set the global flag
-
-    taxaBreakout = 0;
+  loadPage - called initally by init, then recursively by results to load a series
+  of pages of data until done or the user hits the 'Stop' button/
 */
-async function updateMap(occJsonArr, taxonName) {
-    var idTaxonName = taxonName.split(' ').join('_'); //this is updated later if we got multiple scientificNames for one taxonName
-    var sciName = taxonName; //this is updated later if we got multiple scientificNames for one taxonName
-    var idSciName;
+function loadPage(occXHR, url, page) {
+    occXHR.open("GET", `${url}&per_page=${page_size}&page=${page}`, true);
+    occXHR.responseType = 'json'; //looks like you need to add this after the open, and use 'reponse' above, not 'responseText'
+    occXHR.setRequestHeader("Content-type", "application/json");
+    occXHR.send();
+}
 
-    for (var i = 0; i < occJsonArr.length; i++) {
-        var occJson = occJsonArr[i];
+async function occResults(occXHR, url) {
+    var jsonRes = occXHR.response; //JSON.parse(occXHR.response);
+    var totr = jsonRes.total_results;
+    var perp = jsonRes.per_page;
+    var page = jsonRes.page;
+    var pages = Math.floor(totr / perp) + ((totr % perp)>0?1:0);
+    await updateInatMap(jsonRes.results);
+    if (page < pages && runTimer) {
+      console.log(`occValMap::occResults calling loadPage for page ${page} of ${pages}`);
+      loadPage(occXHR, url, ++page);
+    } else {
+      occXHR.abort(); //does this clean up memory?
+    }
+}
 
-        //filter out records witout lat/lon location
-        if (!occJson.decimalLatitude || !occJson.decimalLongitude) {
-            if (typeof cmCount['missing'] === 'undefined') {cmCount['missing'] = 0;}
-            cmCount['missing']++;
-            console.log('WARNING: Occurrence Record without Lat/Lon values:', occJson.uuid, 'missing:', cmCount['missing'], 'count:', cmCount['all']);
-            continue;
-        }
+function updateInatMap(iNatJsonData) {
 
-        if (taxaBreakout) sciName = occJson.scientificName
-        idSciName = sciName.split(' ').join('_');
-        if (typeof cmCount[sciName] === 'undefined') {cmCount[sciName] = 0;}
-        cmCount[sciName]++;
-        cmCount['all']++;
+  for (var i = 0; i < iNatJsonData.length; i++) {
+    var occJson = iNatJsonData[i];
+    if (!occJson.geojson || !occJson.geojson.coordinates) {
+      console.log(`updateInatMap | NO geojson coordinates for UUID:`, occJson.uuid);
+      continue;
+    }
+    var llLoc = L.latLng(occJson.geojson.coordinates[1], occJson.geojson.coordinates[0]);
+    cmCount['iNat']++;
+    cmCount['all']++;
 
-        var llLoc = L.latLng(occJson.decimalLatitude, occJson.decimalLongitude);
+    var popup = L.popup({
+        maxHeight: 200,
+        keepInView: true,
+    }).setContent(`
+        Taxon Name: ${occJson.taxon?occJson.taxon.name:''}<br>
+        Taxon Rank: ${occJson.taxon?occJson.taxon.rank:''}<br>
+        ${occJson.description||''}<br>
+        <a href="${occJson.uri||''}">${occJson.uri||''}</a><br>
+        ${occJson.observed_on_string||''}<br>
+        Quality/Grade: ${occJson.quality_grade||''}<br>`);
 
-        var popup = L.popup({
-            maxHeight: 200,
-            keepInView: true,
-        }).setContent(occurrencePopupInfo(occJson, cmCount[sciName]));
+    var marker = L.circleMarker(llLoc, {
+        //renderer: myRenderer, //using this puts markers behind overlays. do we need it? We do not.
+        fillColor: "white", //cgColor, //interior color
+        fillOpacity: 0.5, //values from 0 to 1
+        color: "green", //border color
+        weight: 1, //border thickness
+        radius: cmRadius,
+        index: cmCount['iNat'],
+        occurrence: (occJson.species||occJson.species_guess)||'none',
+        time: getDateYYYYMMDD(occJson.eventDate)
+    }).bindPopup(popup);
 
-        var marker = L.circleMarker(llLoc, {
-            //renderer: myRenderer, //using this puts markers behind overlays. do we need it? We do not.
-            fillColor: cgColor[taxonName], //interior color
-            fillOpacity: 0.5, //values from 0 to 1
-            color: "black", //border color
-            weight: 1, //border thickness
-            radius: cmRadius,
-            index: cmCount[sciName],
-            occurrence: occJson.scientificName, //occJson.species,
-            time: getDateYYYYMMDD(occJson.eventDate)
-        }).bindPopup(popup);
-
-        marker.bringToFront(); //this is not necessary, currently. can't hurt though.
-
-        if (typeof cmGroup[sciName] === 'undefined') {
-          console.log(`cmGroup[${sciName}] is undefined...adding.`);
-          cmGroup[sciName] = await L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-          await speciesLayerControl.addOverlay(cmGroup[sciName], `<label id="${idSciName}">${sciName}</label>`);
-          cmGroup[sciName].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
-        } else {
-          cmGroup[sciName].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
-        }
-
-        if (testHarness) {
-            marker.bindTooltip(`${cmCount[sciName]}`, {opacity: 0.9});
-        } else {
-            if (occJson.eventDate) {
-                marker.bindTooltip(`${sciName}<br>${getDateYYYYMMDD(occJson.eventDate)}`);
-            } else {
-                marker.bindTooltip(`${sciName}<br>No date supplied.`);
-            }
-        }
-    } //end for-loop
-
-    if (document.getElementById("jsonResults")) {
-        document.getElementById("jsonResults").innerHTML += ` | Records mapped: ${cmCount['all']}`;
+    if (typeof cmGroup['iNat'] === 'undefined') {
+      console.log(`cmGroup[iNat] is undefined...adding.`);
+      cmGroup['iNat'] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
+      //speciesLayerControl.addOverlay(cmGroup['iNat'], `<label id="iNat_Obs">iNat Obs</label>`);
+      cmGroup['iNat'].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
+    } else {
+      cmGroup['iNat'].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
     }
 
-    //cmGroup's keys are sciNames, not elementIds...
-    var id = null;
-    Object.keys(cmGroup).forEach((sciName) => {
-      id = sciName.split(' ').join('_');
-      if (document.getElementById(id) && sciName.includes(taxonName)) {
-          console.log(`-----match----->> ${id} | ${sciName}`, cmCount[sciName], cmTotal[taxonName]);
-          document.getElementById(id).innerHTML = `${sciName} (${cmCount[sciName]}/${cmTotal[taxonName]})`;
-      }
-    });
+    marker.bringToFront(); //this is not necessary, currently. can't hurt though.
+  }
 }
 
 /*
@@ -751,71 +548,18 @@ async function updateMap(occJsonArr, taxonName) {
  * return date in the format YYYY-MM-DD
  */
 function getDateYYYYMMDD(msecs) {
-
     var m = moment.utc(msecs);
-
     return m.format('YYYY-MM-DD');
 }
 
 function getDateMMMMDoYYYY(msecs) {
-
     var m = moment.utc(msecs);
-
     return m.format('MMMM Do YYYY');
-}
-
-function occurrencePopupInfo(occRecord, index) {
-    var info = '';
-
-    if (testHarness) {info += `Map Index: ${index}<br/>`;}
-
-    Object.keys(occRecord).forEach(function(key) {
-        switch(key) {
-            case 'raw_institutionCode':
-                if ('iNaturalist' == occRecord[key]) {
-                    info += `<a href="https://www.inaturalist.org/observations/${occRecord.occurrenceID}" target="_blank">iNaturalist Observation ${occRecord.occurrenceID} </a><br/>`;
-                } else {
-                    info += `Institution: ${occRecord[key]}<br/>`;
-                }
-                break;
-            case 'uuid':
-                info += `<a href="https://biocache.vtatlasoflife.org/occurrences/${occRecord[key]}" target="_blank">VAL Data Explorer Occurrence Record </a><br/>`;
-                break;
-            case 'decimalLatitude':
-                info += `Lat: ${occRecord[key]}`;
-                break;
-            case 'decimalLongitude':
-                info += `, Lon: ${occRecord[key]}<br/>`;
-                break;
-            case 'scientificName':
-                info += `Scientific Name: ${occRecord[key]}<br/>`;
-                break;
-            case 'collector':
-                info += `Collector: ${occRecord[key]}<br/>`;
-                break;
-            case 'basisOfRecord':
-                info += `Basis of Record: ${occRecord[key]}<br/>`;
-                break;
-            case 'eventDate':
-                var msecs = occRecord[key]; //epoch date in milliseconds at time 00:00
-                //var m = moment.utc(msecs); //convert to UTC. otherwise moment adjusts for locale and alters date to UTC-date-minus-locale-offset.
-                //info += `Event Date: ${m.format('MMMM Do YYYY')}<br/>`;
-                info += `Event Date: ${getDateMMMMDoYYYY(msecs)}<br/>`;
-                break;
-            case '':
-                info += `: ${occRecord[key]}<br/>`;
-                break;
-            default: //un-comment this to list all properties
-                //info += `${key}: ${occRecord[key]}<br/>`;
-            }
-        });
-
-    return info;
 }
 
 //iterate through all plotted pools in each featureGroup and alter each radius
 function SetEachPointRadius(radius = cmRadius) {
-  cmRadius = Math.floor(zoomLevel/2);
+  cmRadius = Math.floor(zoomLevel);
   Object.keys(cmGroup).forEach((taxonName) => {
     cmGroup[taxonName].eachLayer((cmLayer) => {
       cmLayer.setRadius(radius);
@@ -824,9 +568,18 @@ function SetEachPointRadius(radius = cmRadius) {
   });
 }
 
-function addMarker() {
-    var marker = L.marker([43.6962, -72.3197]).addTo(valMap);
-    marker.bindPopup("<b>Vermont Center for Ecostudies</b>");
+function setZoom(to=0) {
+  if (to) valMap.setView(vtCenter, 8);
+  else valMap.setView([47.040182, -23.554687], 2);
+}
+
+function addMapCallbacks() {
+    valMap.on('zoomend', function () {
+        console.log(`Map Zoom: ${valMap.getZoom()}`);
+    });
+    valMap.on('moveend', function() {
+        console.log(`Map Center: ${valMap.getCenter()}`);
+    });
 }
 
 //standalone module usage
@@ -836,211 +589,70 @@ function initValStandalone() {
     if (!boundaryLayerControl) {addBoundaries();}
 }
 
-//integrated module usage
-export function getValOccCanvas(map, taxonName) {
-    valMap = map;
-
-    if (taxonName) {
-        addMapCallbacks();
-        initValOccCanvas();
-        cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-        cgColor[taxonName] = cmColors[0];
-        cmCount[taxonName] = 0;
-        cmTotal[taxonName] = 0;
-        getBieSpeciesAddValOccByLsid(taxonName);
-        if (!boundaryLayerControl) {addBoundaries();}
-        //if (!sliderControl) {addTimeSlider(taxonName);}
-        if (!speciesLayerControl) {
-            speciesLayerControl = L.control.layers().addTo(valMap);
-            var idTaxonName = taxonName.split(' ').join('_');
-            speciesLayerControl.addOverlay(cmGroup[taxonName], `<span id="${idTaxonName}">${taxonName}</span>`);
-            speciesLayerControl.setPosition("bottomright");
-        }
-    } else {
-        initValOccCanvas();
-    }
-}
-
-/*
- * Standalone module setup
- *
- * Required html element where id="valStandalone"
- */
-if (document.getElementById("valStandalone")) {
-    window.addEventListener("load", function() {
-
-        initValStandalone();
-
-        // Add a listener to handle the 'Get Data' button click
-        document.getElementById("getData").addEventListener("click", function() {
-          stopData = false; //reset this flag when starting a new data request
-          initValOccCanvas();
-          if (testData) {
-            const taxonName = 'TestData';
-            cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-            cgColor[taxonName] = cmColors[0];
-            getTestData('../testData/testData.json', taxonName);
-          } else {
-            const taxonName = getCanonicalName();
-            cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-            getBieSpeciesAddValOccByLsid();
-          }
-        });
-
-        document.getElementById("stopData").addEventListener("click", function() {
-          stopData = true;
-        });
-
-        // Add a listener to handle the 'Get Species Info' button click
-        document.getElementById("getInfo").addEventListener("click", function() {
-          var data = getAllData();
-          var info = '';
-          if (data) {
-              Object.keys(data).forEach(function(key) {
-                  info += `${key}: ${data[key]}` + String.fromCharCode(13);
-              });
-              alert(info);
-          } else {
-              alert('No Species Selected.');
-          }
-          //alert(getCanonicalName());
-          //alert(getScientificName());
-        });
-
+if (document.getElementById("inatTimer")) {
+  window.addEventListener("load", function() {
+    initValStandalone(); //show the map, add controls
+    document.getElementById("runTimer").addEventListener("click", function() {
+      runTimer = !runTimer;
+      if (runTimer) {startData();}
+      else {stopsData();}
     });
-}
-
-if (document.getElementById("valSurveyBlocksLady")) {
-  surveyBlocksLady = true;
-  initValStandalone();
-}
-
-if (document.getElementById("valSurveyBlocksEAME")) {
-  surveyBlocksEAME = true;
-  initValStandalone();
-}
-
-/*
- * Minimal (map-only) standalone use
- *
- * Requires html element where id="valLoadOnOpen"
- *
- */
-if (document.getElementById("valLoadOnOpen")) {
-    window.addEventListener("load", function() {
-
-        var urlLoad = window.location.toString();
-        urlLoad = decodeURI(urlLoad);
-        var speciesStr = urlLoad.substring(urlLoad.lastIndexOf("=")+1);
-        console.log(`url-parsed species string: ${speciesStr}`);
-        var speciesObj = {};
-        try {
-          speciesObj = JSON.parse(speciesStr);
-          console.log('species object:', speciesObj)
-        } catch(error) {
-          console.log('ERROR parsing http arugment', speciesStr, 'as JSON:', error);
-          alert('Please pass species as object literal like [map-page-url]?species={"Turdus migratorius":"#800000"}');
-        }
-
-        initValStandalone();
-        valMap.options.minZoom = 8;
-        valMap.options.maxZoom = 17;
-        //initValOccCanvas();
-        //getBieSpeciesAddValOccByLsid('Bombus borealis');
-        if (!boundaryLayerControl) {addBoundaries();}
-        if (typeof speciesObj != "object") {
-            alert('Please pass an object literal like [map-page-url]?species={"Turdus migratorius":"#800000"}');
-        } else {
-            getSpeciesListData(speciesObj);
-        }
-
-        // Add a listener to handle the 'clear Data' button click
-        if (document.getElementById("clearData")) {
-            document.getElementById("clearData").addEventListener("click", function() {
-                initValOccCanvas();
-            });
-        }
-
-        // Add a listener to handle the 'Get Data' button click
-        if (document.getElementById("getData")) {
-            document.getElementById("getData").addEventListener("click", function() {
-                getSpeciesListData();
-            });
-        }
+    document.getElementById("vtOnly").addEventListener("click", function() {
+      vtOnly = !vtOnly;
+      console.log('vtOnly click', vtOnly);
+      setZoom(vtOnly);
+      initMap();
+      getData(1);
+      var slider = document.getElementById("dataDays");
+      var output = document.getElementById("dayValue");
+      if (vtOnly) {
+        stateLayer.addTo(valMap); stateLayer.bringToBack();
+        slider.style.display = "block";
+        output.style.display = "block";
+      } else {
+        slider.style.display = "none";
+        output.style.display = "none";
+      }
     });
-}
-
-/*
- * Add multiple species to map, either passed as an argument or loaded from imported .js file (see top of this file)
- *
- * argSpecies or speciesList must be of the form {"species name": "color", "species name": "color", ...}, and the
- * JSON values must be in double quotes.
- */
-function getSpeciesListData(argSpecies = false) {
-    cmCount['all'] = 0;
-    var i=0;
-
-    if (!speciesLayerControl) {
-        speciesLayerControl = L.control.layers().addTo(valMap);
-        speciesLayerControl.setPosition("bottomright");
-    }
-
-    if (!argSpecies) {
-        argSpecies = speciesList;
-    }
-
-    //allow an object-value of 'breakout' to set that behavior. use it and delete it.
-    if (typeof argSpecies.taxaBreakout != 'undefined') {
-      taxaBreakout = argSpecies.taxaBreakout;
-      delete argSpecies.taxaBreakout;
-    }
-
-    Object.keys(argSpecies).forEach(async function(taxonName) {
-        taxonName = taxonName.trim();
-        cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-        cmCount[taxonName] = 0;
-        cgColor[taxonName] = argSpecies[taxonName]; //define circleMarker color for each species mapped
-        cmTotal[taxonName] = 0;
-        console.log(`getSpeciesListData: Add species group ${taxonName} with color ${argSpecies[taxonName]}`);
-        await getBieSpeciesAddValOccByLsid(taxonName);
-        var idTaxonName = taxonName.split(' ').join('_');
-        speciesLayerControl.addOverlay(cmGroup[taxonName], `<span id="${idTaxonName}">${taxonName}</span>`);
-        i++;
+    document.getElementById("getObs").addEventListener("click", function() {
+      getObs = !getObs;
     });
-}
-
-function addMapCallbacks() {
-    /*
-     * This event is triggered for each 'layeradd', which in our case is for each circleMarker.
-     * Doing anything here has major performance hit.
-     */
-/*
-    valMap.on('layeradd', function (event) {
-*/
-    valMap.on('zoomend', function () {
-        console.log(`Map Zoom: ${valMap.getZoom()}`);
+    document.getElementById("getIDs").addEventListener("click", function() {
+      getIDs = !getIDs;
     });
-    valMap.on('moveend', function() {
-        console.log(`Map Center: ${valMap.getCenter()}`);
-    });
+    document.getElementById("dataDays").addEventListener("change", function() {
+      var slider = document.getElementById("dataDays");
+      var output = document.getElementById("dayValue");
+      output.innerHTML = slider.value + ' Days';; // Display the default slider value
+      dataDays = slider.value;
 
-}
-
-/*
- * Test the map by counting the markers for a taxonName.  This depends upon adding custom
- * options to each marker called 'index' and 'occurrence'.
- * - Count the markers
- * - Verify proper data
- * - Step through each datapoint and toggle its popup
- */
-export function testMarkers(taxonName) {
-    valMap.eachLayer(function(layer) {
-        if ('occurrence' in layer.options) {
-            console.log(layer.options.occurrence + ':' + layer.options.index);
-            //layer.openTooltip();
-            layer.openPopup();
-            alert(layer.options.occurrence + ':' + layer.options.index);
-            layer.closeTooltip();
+      // Update the current slider value (each time you drag the slider handle)
+      slider.oninput = function() {
+          output.innerHTML = this.value + ' Days';
+          dataDays = this.value
+          initMap();
+          getData(1);
         }
-    });
+      });
+
+  });
+  startData();
+}
+
+function getData(init=0) {
+  if (getObs) getInatObs(init);
+  if (getIDs) getInatIDs(init);
+  //getStamp();
+}
+
+//interval = 1000;
+
+function startData() {
+  getData(1);
+  intervalFn = window.setInterval(getData, interval);
+}
+
+function stopsData() {
+  clearInterval(intervalFn);
+  intervalFn = null;
 }

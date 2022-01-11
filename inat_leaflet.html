@@ -11,7 +11,6 @@
     <meta name="author" content="Vermont Center for Ecostudies">
 
     <link href="css/bootstrap.min.css" rel="stylesheet">
-    <link href="css/style.css" rel="stylesheet">
 
     <link rel="SHORTCUT ICON" href="https://vtecostudies.org/wp-content/themes/vtecostudies/favicon.ico"/>
 
@@ -27,7 +26,10 @@
 
     <script src="https://unpkg.com/leaflet.vectorgrid@latest/dist/Leaflet.VectorGrid.js"></script>
 
-    <script type="module" src="js/occInatMap_Old.js"></script>
+    <script src="js/moment.min.js"></script>
+    <!--
+    <script type="module" src="js/inat_leaflet.js"></script>
+    -->
 
   </head>
   <body>
@@ -35,17 +37,14 @@
         <div class="row">
             <div class="col-md-1"></div>
             <div class="col-md-10">
-                    <h5 class="vceCenter"><u>VCE Example: Leaflet with iNat Occ API data and BISON WMS Raster Overlay</u></h5>
-                    <!--
-                    <h5 class="vceCenter"><u>VCE Example: Leaflet with BISON WMS Occurrence Data Raster Overlay</u></h5>
-                    -->
+                <h5 class="vceCenter"><u>VCE Example: Leaflet with iNat Occ API data</u></h5>
             </div>
             <div class="col-md-1"></div>
         </div>
         <div class="row">
             <div class="col-md-1"></div>
             <div class="col-md-2">
-                <a href="https://vtecostudies.org"><img src="/img/vce_logo_medium.png"/></a>
+                <a href="https://vtecostudies.org"><img src="img/vce_logo_small.png"/></a>
             </div>
             <div class="col-md-1">
                 <label id=zoomLabel class="small vceOutline"></label>
@@ -65,7 +64,7 @@
             </div>
             <div class="col-md-1"></div>
         </div>
-        <div class="row">
+        <div class="row" id="standAlone">
             <div class="col-md-1"></div>
             <div class="col-md-10">
                 <div id="mapid" style="width: 100%; height: 700px;" class="center"></div>
@@ -88,3 +87,79 @@
 
   </body>
 </html>
+<script>
+
+function getInatObs(begMsecs=0) {
+  //var mapExt = getMapLlExtents();
+  var baseUrl = 'https://api.inaturalist.org/v1/observations';
+  var begDate = `?d1=${getStamp(30)}`;
+  var endDate = `&d2=${getStamp(0)}`;
+  var project = '&project_id=vermont-atlas-of-life';
+  var identified = '&current=true';
+  //var bbox = `&nelat=${mapExt.nelat}&nelng=${mapExt.nelng}&swlat=${mapExt.swlat}&swlng=${mapExt.swlng}`;
+  var order = '&order=desc&order_by=created_at';
+  var iNatUrl = baseUrl + begDate + endDate + project + order;
+  var iNatUrl = baseUrl + begDate + order;
+
+  console.log('getInatObs', iNatUrl);
+  //iNatUrl = 'https://api.inaturalist.org/v1/observations?project_id=vermont-atlas-of-life&d1=2022-01-01T12:00:00'
+  // start a new chain of fetch events
+  initOccRequest(iNatUrl);
+}
+
+function initOccRequest(url) {
+    var occXHR = new XMLHttpRequest();
+    occXHR.open("GET", url, true);
+
+    //handle request responses here in this callback
+    occXHR.onload = function() {
+      var data = JSON.parse(this.response);
+      if (request.status >= 200 && request.status < 400) {
+          console.log('results:', data["total_results"]);
+          occResults(this, url);
+      } else {
+          console.log('error');
+      }
+    };
+    occXHR.send();
+
+    //load the first page of data, which initiates subsequent page loads
+    //loadPage(occXHR, url, 1);
+}
+
+/*
+  loadPage - called initally by init, then recursively by results to load a series
+  of pages of data until done or the user hits the 'Stop' button/
+*/
+function loadPage(occXHR, url, page) {
+    occXHR.open("GET", url+`&page=${page}`, true);
+    //occXHR.responseType = 'json';  //looks like you need to add this after the open, and use 'reponse' above, not 'responseText'
+    //occXHR.setRequestHeader("Content-type", "application/json");
+    //occXHR.setRequestHeader("Access-Control-Allow-Origin", "*");
+    occXHR.send();
+}
+
+async function occResults(occXHR, url) {
+    var jsonRes = occXHR.response; //JSON.parse(occXHR.response);
+    var totr = jsonRes.total_results;
+    var perp = jsonRes.per_page;
+    var page = jsonRes.page;
+    var pages = Math.floor(totr / perp) + ((totr % perp)>0?1:0);
+    //await updateInatMap(jsonRes.results);
+    if (page < pages && !stopData) {
+      console.log(`occValMap::occResults calling loadPage for page ${page} of ${pages}`);
+      loadPage(occXHR, url, ++page);
+    } else {
+      occXHR.abort(); //does this clean up memory?
+    }
+}
+
+function getStamp(offsetSecs=30) {
+  const stamp = moment(moment().valueOf() -  offsetSecs * 1000).format('YYYY-MM-DDTHH:mm:ss');
+  //console.log('getStamp', stamp);
+  return stamp;
+}
+
+//getInatObs();
+
+</script>

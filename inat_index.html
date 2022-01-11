@@ -3,26 +3,14 @@
 <head>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="utf-8"/>
-	<link rel="stylesheet" href="css/bootstrap.css">
-	<!--<link rel="stylesheet" href="css/bootstrap-theme.css">-->
-	<link rel="stylesheet" href="css/vce-styles.css">
-
-    <link rel="SHORTCUT ICON" href="img/favicon.ico"/>
+		<link rel="stylesheet" href="css/bootstrap.css">
 
     <!-- Leaflet's CSS -->
-		<!--
-		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
-			integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
-			crossorigin=""/>
-		-->
 		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
 		integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
 		crossorigin="" />
 
-    <!-- Make sure you put this AFTER Leaflet's CSS --> <!--
-		<script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
-		  integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
-		  crossorigin=""></script> -->
+    <!-- Make sure you put this AFTER Leaflet's CSS -->
 		<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
 		integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
 		crossorigin=""></script>
@@ -41,59 +29,42 @@
     <script src="js/jquery-ui.min.js"></script>
     <script src="js/moment.min.js"></script>
 
-    <script type="module" src="js/occInatMap.js"></script>
-    <script type="module" src="js/gbifAutoComplete.js"></script>
+    <script type="module" src="js/occInatMap.js" crossorigin="anonymous"></script>
 
 </head>
 <body>
+  <div class="header">
+    <div class="row">
+			<div class="col-sm-1"></div>
+      <div class="col-sm-2 slidecontainer">
+				<input type="range" min="1" max="10" value="1" class="slider" id="dataDays" name="dataDays"><br>
+				<label for="dataDays" id="dayValue">Days</label>
+      </div> <!-- col -->
+			<div class="col-sm-1">
+				<input type="checkbox" id="runTimer" name="runTimer" class="form-check-input" checked>
+				<label for="runTimer">Update/30s</label><br>
+				<input type="checkbox" id="vtOnly" name="vtOnly" class="form-check-input" checked>
+				<label for="vtOnly">VT-Only</label>
+			</div> <!-- col -->
+			<div class="col-sm-1">
+				<input type="checkbox" id="getObs" name="getObs" class="form-check-input" checked>
+				<label for="getObs">Observations</label><br>
+				<input type="checkbox" id="getIDs" name="getIDs" class="form-check-input">
+				<label for="getIDs">Identifications</label>
+			</div> <!-- col -->
+      <div class="col-sm-4">
+				<h4>VAL iNaturalist Observations</h4>
+      </div> <!-- col -->
+    </div> <!-- row -->
+  </div> <!-- container -->
 
-    <div class="vceHeader">
-      <div class="row">
-        <div class="col-md-3">
-            <a href="https://val.vtecostudies.org"><img src="img/val_logo_medium.png"/></a>
-        </div> <!-- col -->
-        <div class="col-md-7">
-            <a href="http://vtatlasoflife.org"><h3>VAL iNat Species Map</h3></a>
-        </div> <!-- col -->
-      </div> <!-- row -->
-    </div> <!-- container -->
+		<div id="inatTimer">
+			<div class="row">
+				<div id="vtatlas_webmap" class="col-sm-12" style="padding-left:25px;">
+					<div id="mapid" style="width: 100%; height: 600px;"></div>
+				</div>
+			</div>
+		</div>
 
-    <div id="valStandalone" class="jumbotron" style="padding-top:15px;">
-        <div class="row">
-
-            <div id="vtatlas_webmap" class="col-md-12" style="padding-left:25px;">
-                <label>Species Name: (</label>
-                <input type="radio" id="sciName" name="nameType" value="scientific_name" checked/><label for="sciName">Scientific</label>
-                <input type="radio" id="comName" name="nameType" value="common_name" disabled="true"/><label for="comName">Common</label>
-                )
-                <!-- gbif autocomplete scientific name lookup -->
-                <input type="text" autocomplete="off" id="gbif_autocomplete_name" size=40 list="gbif_autocomplete_list">
-                <datalist id="gbif_autocomplete_list"></datalist>
-<!--
-								<select name="inatYear" id="inatYear">
-								  <option value="2018">2018</option>
-									<option value="2019">2019</option>
-									<option value="2020">2020</option>
-									<option value="2021">2021</option>
-									<option value="2022">2022</option>
-								</select>
--->
-                <input type="submit" id="getData" value="Get Data"/>
-								<input type="submit" id="stopData" value="Stop"/>
-                <input type="submit" id="getInfo" value="Get Species Info"/>
-
-								<!-- <label id="jsonResults" class="small vceOutline"></label> -->
-								<label id="jsonResults"></label>
-
-                <!-- this works on windows/localhost but height is zero on linux/vtatlasoflife.org
-                <div id="mapid" style="width: 100%; height: 100%;"></div>
-                -->
-                <div id="mapid" style="width: 100%; height: 600px;"></div>
-
-                <label id="zoomLabel" class="small vceOutline"></label>
-                <label id="apiUrlLabel" class="small vceOutline"></label>
-            </div> <!-- col -->
-        </div> <!-- /row -->
-    </div> <!-- /container -->
 </body>
 </html>

@@ -1,5 +1,5 @@
 /*
-jtl 10/11/2018
+10/11/2018
 Leaflet experiment.
 Goals:
 - load wms from BISON and display over Leaflet (check)
@@ -19,7 +19,7 @@ function addMap() {
             zoom: 12,
             crs: L.CRS.EPSG3857
         });
-    
+
     L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
         maxZoom: 20,
         attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
@@ -30,10 +30,10 @@ function addMap() {
 }
 /*
  USGS coordinate system is only EPSG:3857
- 
+
  BBOX = Specifies the bounding box (minx, maxx, miny, maxy) of the image to be rendered
  Coordinates must be in Web Mercator (Spherical Mercator with WGS 1984 as the Datum)
- 
+
  NOTE: The above description appears to be incorrect.  We altered the bbox values to be
  minx, miny, maxx, maxy, representing SW-corner and NE-corner of map, and it seems to work.
 */
@@ -77,13 +77,13 @@ function getMapExtents() {
  * http://dotnetfollower.com/wordpress/2011/08/javascript-how-to-convert-latitude-and-longitude-to-mercator-coordinates/
  */
 function toWebMercator(lat, lon) {
- 
+
     var rMajor = 6378137; //Equatorial Radius, WGS84
     var shift  = Math.PI * rMajor;
     var x      = lon * shift / 180;
     var y      = Math.log(Math.tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180);
     y = y * shift / 180;
- 
+
     return {'x': x, 'y': y};
 }
 
@@ -118,13 +118,13 @@ export function getBisonWmsOverlay(map) {
 
 if (document.getElementById("bisonStandalone")) {
     window.addEventListener("load", function() {
-    
+
         initBisonStandalone();
-        
+
         // Add a listener to handle the 'Get Data' button click
         document.getElementById("getData").addEventListener("click", function() {
             addBisonWmsOverlay();
         });
-    
+
     });
 }
