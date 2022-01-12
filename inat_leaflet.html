@@ -92,9 +92,12 @@
 function getInatObs(begMsecs=0) {
   //var mapExt = getMapLlExtents();
   var baseUrl = 'https://api.inaturalist.org/v1/observations';
-  var begDate = `?d1=${getStamp(30)}`;
-  var endDate = `&d2=${getStamp(0)}`;
+  //var begDate = `?d1=${getStamp(30)}`; // these are times but just need date with d1 call
+  //var endDate = `&d2=${getStamp(0)}`;
+  var begDate = `?created_d1=${getStamp(30)}`; // created_d1 needs time - added offset for UTC
+  var endDate = `&created_d2=${getStamp(0)}`;  // see above
   var project = '&project_id=vermont-atlas-of-life';
+  var place = '&place_id=47'; //Vermont
   var identified = '&current=true';
   //var bbox = `&nelat=${mapExt.nelat}&nelng=${mapExt.nelng}&swlat=${mapExt.swlat}&swlng=${mapExt.swlng}`;
   var order = '&order=desc&order_by=created_at';
@@ -154,9 +157,13 @@ async function occResults(occXHR, url) {
     }
 }
 
+/* Time created at on iNat: "time_observed_at": "2022-01-07T15:24:58-05:00" 
+ * I added -04:00 at the end of the string - should be -05:00 when we
+ * have daylight savings 
+ */
 function getStamp(offsetSecs=30) {
-  const stamp = moment(moment().valueOf() -  offsetSecs * 1000).format('YYYY-MM-DDTHH:mm:ss');
-  //console.log('getStamp', stamp);
+  const stamp = moment(moment().valueOf() -  offsetSecs * 1000).format('YYYY-MM-DDTHH:mm:ss') + '-04:00';
+  console.log('getStamp', stamp);
   return stamp;
 }
 
