@@ -425,7 +425,7 @@ function getInatObs(init=0) {
   var project = '&project_id=vermont-atlas-of-life';
   var identified = '&current=true';
   //var bbox = `&nelat=${mapExt.nelat}&nelng=${mapExt.nelng}&swlat=${mapExt.swlat}&swlng=${mapExt.swlng}`;
-  var order = '&order=desc&order_by=created_at';
+  var order = '&order=desc&order_by=updated_at';
   var iNatUrl = baseUrl + begDate + order;
   if (vtOnly) {iNatUrl = baseUrl + begDate + project + order;}
 
@@ -441,7 +441,7 @@ function getInatIDs(init=0) {
   var endDate = `&observation_created_d2=${getStamp(0)}`;
   var place = '&place_id=47';
   //var bbox = `&nelat=${mapExt.nelat}&nelng=${mapExt.nelng}&swlat=${mapExt.swlat}&swlng=${mapExt.swlng}`;
-  var order = '&order=desc&order_by=created_at';
+  var order = '&order=desc&order_by=updated_at';
   var iNatUrl = baseUrl + begDate + order;
   if (vtOnly) {iNatUrl = baseUrl + begDate + place + order;}
 
@@ -527,12 +527,14 @@ function updateInatMap(iNatJsonData, type=0) {
         maxHeight: 200,
         keepInView: true,
     }).setContent(`
-
         Taxon Name: ${obsJson.taxon?obsJson.taxon.name:''}<br>
         Taxon Rank: ${obsJson.taxon?obsJson.taxon.rank:''}<br>
-        ${obsJson.description||''}<br>
+        Description: ${obsJson.description||''}<br>
         <a href="${obsJson.uri||''}">${obsJson.uri||''}</a><br>
-        ${obsJson.observed_on_string||''}<br>
+        Observed on: ${moment(obsJson.time_observed_at).format('YYYY-MM-DD HH:mm:ss')||''}<br>
+        Created on: ${moment(obsJson.created_at).format('YYYY-MM-DD HH:mm:ss')||''}<br>
+        Updated at: ${moment(obsJson.updated_at).format('YYYY-MM-DD HH:mm:ss')||''}<br>
+        Place guess: ${obsJson.place_guess||''}<br>
         Quality/Grade: ${obsJson.quality_grade||''}<br>`);
 
     var marker = L.circleMarker(llLoc, {
