@@ -399,8 +399,13 @@ function initMap() {
     speciesLayerControl = false;
 }
 
+/* Time created at on iNat: "time_observed_at": "2022-01-07T15:24:58-05:00" 
+ * I added -04:00 at the end of the string - should be -05:00 when we
+ * have daylight savings - that could be dynamically coded but not there 
+ * yet with JavaScript coding 
+ */
 function getStamp(offsetSecs=30) {
-  const loc = moment(moment().valueOf() -  offsetSecs * 1000).format('YYYY-MM-DDTHH:mm:ss');
+  const loc = moment(moment().valueOf() -  offsetSecs * 1000).format('YYYY-MM-DDTHH:mm:ss') + '-05:00';
   const utc = moment.utc(moment().valueOf() - offsetSecs * 1000).format('YYYY-MM-DDTHH:mm:ss');
   //console.log(`getStamp | local: ${loc} | utc: ${utc}`);
   return utc;
@@ -417,6 +422,75 @@ function getDate(offsetDays=1) {
   https://api.inaturalist.org/v1/observations/?project_id=vermont-atlas-of-life&quality_grade=research
   https://api.inaturalist.org/v1/observations/?project_id=vermont-atlas-of-life&quality_grade=needs_id
 */
+
+/* I think it might be easier to get new observations every $getStamp and have old observations 
+ * those before a person comes to the page be small gray points.
+ * 
+ * I added a few of those calls below - 
+ * getInatObsDay = function to get just current days observations 
+ * getInatRecentObs = function to get observations from session start to previous check 
+ * getInatCurrentObs = function to get just observations since last check
+ */
+ 
+// function added to get just the current days observations 
+function getInatObsDay(init=0) {
+  //var mapExt = getMapLlExtents();
+  var baseUrl = 'https://api.inaturalist.org/v1/observations';
+  //var begDate = `?d1=${getStamp(30)}`; if (init & vtOnly) {begDate = `?d1=${getDate(getDays)}`;}
+  var begDate = `?created_d1=${getDate(0) + 'T00:00:00-05:00'}` //midnight of current day
+  var endDate = `&d2=${getStamp(0)}`;
+  var project = '&project_id=vermont-atlas-of-life';
+  var identified = '&current=true';
+  //var bbox = `&nelat=${mapExt.nelat}&nelng=${mapExt.nelng}&swlat=${mapExt.swlat}&swlng=${mapExt.swlng}`;
+  var order = '&order=desc&order_by=created_at';
+  var iNatUrl = baseUrl + begDate + order;
+  if (vtOnly) {iNatUrl = baseUrl + begDate + project + order;}
+
+  //console.log('getInatObs', iNatUrl);
+  // start a new chain of fetch events
+  initOccRequest(iNatUrl, 0);
+}
+
+// function added to get just the observations that occur within timestamp interval (most recent obs)
+function getInatCurrentObs(init=0) {
+  //var mapExt = getMapLlExtents();
+  var baseUrl = 'https://api.inaturalist.org/v1/observations';
+  //var begDate = `?d1=${getStamp(30)}`; if (init & vtOnly) {begDate = `?d1=${getDate(getDays)}`;}
+  var begDate = `?created_d1=${getStamp(30)}`;
+  var endDate = `&created_d2=${getStamp(0)}`;
+  var project = '&project_id=vermont-atlas-of-life';
+  var identified = '&current=true';
+  //var bbox = `&nelat=${mapExt.nelat}&nelng=${mapExt.nelng}&swlat=${mapExt.swlat}&swlng=${mapExt.swlng}`;
+  var order = '&order=desc&order_by=created_at';
+  var iNatUrl = baseUrl + begDate + endDate + order;
+  if (vtOnly) {iNatUrl = baseUrl + begDate + project + order;}
+
+  //console.log('getInatObs', iNatUrl);
+  // start a new chain of fetch events
+  initOccRequest(iNatUrl, 0);
+}
+ 
+// function added to get just the observations that occurred within the last 2 timestamp intervals
+// recent but not current observations - this would be faded color on map to show it was seen obs
+// pretty recently 
+
+function getInatRecentObs(init=0) {
+  //var mapExt = getMapLlExtents();
+  var baseUrl = 'https://api.inaturalist.org/v1/observations';
+  //var begDate = `?d1=${getStamp(30)}`; if (init & vtOnly) {begDate = `?d1=${getDate(getDays)}`;}
+  var begDate = `?created_d1=${getStamp(60)}`;
+  var endDate = `&created_d2=${getStamp(30)}`;
+  var project = '&project_id=vermont-atlas-of-life';
+  var identified = '&current=true';
+  //var bbox = `&nelat=${mapExt.nelat}&nelng=${mapExt.nelng}&swlat=${mapExt.swlat}&swlng=${mapExt.swlng}`;
+  var order = '&order=desc&order_by=created_at';
+  var iNatUrl = baseUrl + begDate + endDate + order;
+  if (vtOnly) {iNatUrl = baseUrl + begDate + project + order;}
+
+  //console.log('getInatObs', iNatUrl);
+  // start a new chain of fetch events
+  initOccRequest(iNatUrl, 0);
+}
 function getInatObs(init=0) {
   //var mapExt = getMapLlExtents();
   var baseUrl = 'https://api.inaturalist.org/v1/observations';
