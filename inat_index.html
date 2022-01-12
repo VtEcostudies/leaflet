@@ -37,8 +37,8 @@
     <div class="row">
 			<div class="col-sm-1"></div>
       <div class="col-sm-2 slidecontainer">
-				<input type="range" min="1" max="10" value="1" class="slider" id="dataDays" name="dataDays"><br>
-				<label for="dataDays" id="dayValue">Days</label>
+				<input type="range" min="0" max="9" value="0" class="slider" id="getDays" name="getDays"><br>
+				<label for="getDays" id="dayValue">0 Days</label>
       </div> <!-- col -->
 			<div class="col-sm-1">
 				<input type="checkbox" id="runTimer" name="runTimer" class="form-check-input" checked>
@@ -47,9 +47,9 @@
 				<label for="vtOnly">VT-Only</label>
 			</div> <!-- col -->
 			<div class="col-sm-1">
-				<input type="checkbox" id="getObs" name="getObs" class="form-check-input" checked>
+				<input type="radio" id="getObs" name="dataType" value="0" class="form-check-input" checked>
 				<label for="getObs">Observations</label><br>
-				<input type="checkbox" id="getIDs" name="getIDs" class="form-check-input">
+				<input type="radio" id="getIDs" name="dataType" value="1" class="form-check-input">
 				<label for="getIDs">Identifications</label>
 			</div> <!-- col -->
       <div class="col-sm-4">

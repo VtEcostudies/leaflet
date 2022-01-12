@@ -21,13 +21,12 @@ var cmGroup = {}; //object of layerGroups of different species' markers grouped 
 var cmCount = {}; //a global counter for cmLayer array-objects across mutiple species
 var cmTotal = {}; //a global total for cmLayer counts across species
 var cgColor = {}; //object of colors for separate species layers
-var cmColors = {0:"white",1:"green",2:"blue",3:"yellow",4:"orange",5:"purple",6:"cyan",7:"grey"};
+var cmColor = {0:"green",1:"blue",2:"red",3:"yellow",4:"orange",5:"purple",6:"cyan",7:"grey"};
 var cmRadius = 10;
 var valMap = {};
 var basemapLayerControl = false;
 var boundaryLayerControl = false;
 var speciesLayerControl = false;
-var xhrRecsPerPage = 1000; //the number of records to load per ajax request.  more is faster.
 var totalRecords = 0;
 var vtWKT = "POLYGON((-73.3427 45.0104,-73.1827 45.0134,-72.7432 45.0153,-72.6100 45.0134,-72.5551 45.0075,-72.4562 45.0090,-72.3113 45.0037,-72.0964 45.0066,-71.9131 45.0070,-71.5636 45.0138,-71.5059 45.0138,-71.5294 44.9748,-71.4949 44.9123,-71.5567 44.8296,-71.6281 44.7506,-71.6061 44.7077,-71.5677 44.6481,-71.5388 44.5817,-71.6006 44.5533,-71.5746 44.5308,-71.5883 44.4955,-71.6556 44.4504,-71.7146 44.4093,-71.7957 44.3975,-71.8163 44.3563,-71.8698 44.3327,-71.9138 44.3484,-71.9865 44.3386,-72.0346 44.3052,-72.0428 44.2432,-72.0662 44.1930,-72.0360 44.1349,-72.0580 44.0698,-72.1101 44.0017,-72.0937 43.9671,-72.1252 43.9088,-72.1733 43.8682,-72.1994 43.7899,-72.1994 43.7899,-72.2392 43.7384,-72.3010 43.7056,-72.3271 43.6391,-72.3436 43.5893,-72.3793 43.5814,-72.3972 43.5027,-72.3807 43.4988,-72.3999 43.4150,-72.4123 43.3601,-72.3903 43.3591,-72.4081 43.3282,-72.3999 43.2762,-72.4370 43.2342,-72.4493 43.1852,-72.4480 43.1311,-72.4507 43.0679,-72.4438 43.0067,-72.4699 42.9846,-72.5276 42.9645,-72.5331 42.8951,-72.5633 42.8639,-72.5098 42.7863,-72.5166 42.7652,-72.4741 42.7541,-72.4590 42.7289,-73.2761 42.7465,-73.2912 42.8025,-73.2850 42.8357,-73.2678 43.0679,-73.2472 43.5022,-73.2561 43.5615,-73.2939 43.5774,-73.3049 43.6271,-73.3557 43.6271,-73.3976 43.5675,-73.4326 43.5883,-73.4285 43.6351,-73.4079 43.6684,-73.3907 43.7031,-73.3516 43.7701,-73.3928 43.8207,-73.3832 43.8533,-73.3969 43.9033,-73.4086 43.9365,-73.4134 43.9795,-73.4381 44.0427,-73.4141 44.1058,-73.3928 44.1921,-73.3427 44.2393,-73.3186 44.2467,-73.3406 44.3484,-73.3385 44.3690,-73.2946 44.4328,-73.3296 44.5367,-73.3832 44.5919,-73.3770 44.6569,-73.3681 44.7477,-73.3317 44.7857,-73.3324 44.8043,-73.3818 44.8398,-73.3564 44.9040,-73.3392 44.9181,-73.3372 44.9643,-73.3537 44.9799,-73.3447 45.0046,-73.3447 45.0109,-73.3426 45.0104,-73.3427 45.0104))";
 var stateLayer = false;
@@ -41,8 +40,8 @@ var baseMapDefault = null;
 var inatYear = '2022';
 var intervalFn = null;
 var interval = 30000;
-var page_size = 100;
-var dataDays = 1;
+var page_size = 200; //max is 200. do not exceed.
+var getDays = 0;
 var vtOnly = 1;
 var runTimer = 1;
 var getObs = 1;
@@ -382,7 +381,7 @@ function getMapLlExtents() {
  * Clear any markers from the map
  */
 function initMap() {
-    //console.log(`initMap()`);
+    console.log(`initMap()`);
     cmCount['all'] = 0;
     //remove all circleMarkers from each group by clearing the layer
     Object.keys(cmGroup).forEach(function(key) {
@@ -421,7 +420,7 @@ function getDate(offsetDays=1) {
 function getInatObs(init=0) {
   //var mapExt = getMapLlExtents();
   var baseUrl = 'https://api.inaturalist.org/v1/observations';
-  var begDate = `?d1=${getStamp(30)}`; if (init & vtOnly) {begDate = `?d1=${getDate(dataDays)}`;}
+  var begDate = `?d1=${getStamp(30)}`; if (init & vtOnly) {begDate = `?d1=${getDate(getDays)}`;}
   var endDate = `&d2=${getStamp(0)}`;
   var project = '&project_id=vermont-atlas-of-life';
   var identified = '&current=true';
@@ -430,15 +429,15 @@ function getInatObs(init=0) {
   var iNatUrl = baseUrl + begDate + order;
   if (vtOnly) {iNatUrl = baseUrl + begDate + project + order;}
 
-  console.log('getInatObs', iNatUrl);
+  //console.log('getInatObs', iNatUrl);
   // start a new chain of fetch events
-  initOccRequest(iNatUrl);
+  initOccRequest(iNatUrl, 0);
 }
 
 function getInatIDs(init=0) {
   //var mapExt = getMapLlExtents();
   var baseUrl = 'https://api.inaturalist.org/v1/identifications';
-  var begDate = `?observation_created_d1=${getStamp(30)}`; if (init & vtOnly) {begDate = `?d1=${getDate(dataDays)}`;}
+  var begDate = `?observation_created_d1=${getStamp(30)}`; if (init & vtOnly & getDays) {begDate = `?d1=${getDate(getDays)}`;}
   var endDate = `&observation_created_d2=${getStamp(0)}`;
   var place = '&place_id=47';
   //var bbox = `&nelat=${mapExt.nelat}&nelng=${mapExt.nelng}&swlat=${mapExt.swlat}&swlng=${mapExt.swlng}`;
@@ -446,18 +445,18 @@ function getInatIDs(init=0) {
   var iNatUrl = baseUrl + begDate + order;
   if (vtOnly) {iNatUrl = baseUrl + begDate + place + order;}
 
-  console.log('getInatIDs', iNatUrl);
+  //console.log('getInatIDs', iNatUrl);
   // start a new chain of fetch events
-  initOccRequest(iNatUrl);
+  initOccRequest(iNatUrl, 1);
 }
 
-function initOccRequest(url) {
+function initOccRequest(url, type=0) {
     var occXHR = new XMLHttpRequest();
 
     //handle request responses here in this callback
     occXHR.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
-            occResults(this, url);
+            occResults(this, url, type);
         } else if (this.status > 299) {
           console.log(`initOccRequest(${url} |  readyState: ${this.readyState} | status: ${this.status}`);
         }
@@ -472,19 +471,21 @@ function initOccRequest(url) {
   of pages of data until done or the user hits the 'Stop' button/
 */
 function loadPage(occXHR, url, page) {
-    occXHR.open("GET", `${url}&per_page=${page_size}&page=${page}`, true);
+    const uri = `${url}&per_page=${page_size}&page=${page}`;
+    console.log(`loadpage`, uri);
+    occXHR.open("GET", uri, true);
     occXHR.responseType = 'json'; //looks like you need to add this after the open, and use 'reponse' above, not 'responseText'
     occXHR.setRequestHeader("Content-type", "application/json");
     occXHR.send();
 }
 
-async function occResults(occXHR, url) {
+async function occResults(occXHR, url, type=0) {
     var jsonRes = occXHR.response; //JSON.parse(occXHR.response);
     var totr = jsonRes.total_results;
     var perp = jsonRes.per_page;
     var page = jsonRes.page;
     var pages = Math.floor(totr / perp) + ((totr % perp)>0?1:0);
-    await updateInatMap(jsonRes.results);
+    await updateInatMap(jsonRes.results, type);
     if (page < pages && runTimer) {
       console.log(`occValMap::occResults calling loadPage for page ${page} of ${pages}`);
       loadPage(occXHR, url, ++page);
@@ -493,19 +494,29 @@ async function occResults(occXHR, url) {
     }
 }
 
-function updateInatMap(iNatJsonData) {
+//update the map with a page of data. type is 0:observations, 1:identifications
+function updateInatMap(iNatJsonData, type=0) {
 
   for (var i = 0; i < iNatJsonData.length; i++) {
-    var occJson = iNatJsonData[i];
+    var obsJson = {};
+    var idJson = {};
     var llLoc = null;
-    if (occJson.geojson && occJson.geojson.coordinates) {
-      llLoc = L.latLng(occJson.geojson.coordinates[1], occJson.geojson.coordinates[0]);
-    } else if (occJson.location) {
-      console.log(`updateInatMap | NO geojson coordinates for URI:`, occJson.uri);
+
+    if (0==type) { //obs
+      obsJson = iNatJsonData[i];
+    } else if (1==type) { //id
+      idJson = iNatJsonData[i];
+      obsJson = idJson.observation;
+    }
+
+    if (obsJson.geojson && obsJson.geojson.coordinates) {
+      llLoc = L.latLng(obsJson.geojson.coordinates[1], obsJson.geojson.coordinates[0]);
+    } else if (obsJson.location) {
+      console.log(`updateInatMap | NO geojson coordinates for URI:`, obsJson.uri);
       llArr = `${occJason.location}`.split(',');
       llLoc = L.latLng(llArr[0], llArr[1]);
     } else {
-      console.log(`updateInatMap | NO coordinates for URI:`, occJson.uri);
+      console.log(`updateInatMap | NO coordinates for URI:`, obsJson.uri);
       continue;
     }
 
@@ -516,23 +527,24 @@ function updateInatMap(iNatJsonData) {
         maxHeight: 200,
         keepInView: true,
     }).setContent(`
-        Taxon Name: ${occJson.taxon?occJson.taxon.name:''}<br>
-        Taxon Rank: ${occJson.taxon?occJson.taxon.rank:''}<br>
-        ${occJson.description||''}<br>
-        <a href="${occJson.uri||''}">${occJson.uri||''}</a><br>
-        ${occJson.observed_on_string||''}<br>
-        Quality/Grade: ${occJson.quality_grade||''}<br>`);
+
+        Taxon Name: ${obsJson.taxon?obsJson.taxon.name:''}<br>
+        Taxon Rank: ${obsJson.taxon?obsJson.taxon.rank:''}<br>
+        ${obsJson.description||''}<br>
+        <a href="${obsJson.uri||''}">${obsJson.uri||''}</a><br>
+        ${obsJson.observed_on_string||''}<br>
+        Quality/Grade: ${obsJson.quality_grade||''}<br>`);
 
     var marker = L.circleMarker(llLoc, {
         //renderer: myRenderer, //using this puts markers behind overlays. do we need it? We do not.
         fillColor: "white", //cgColor, //interior color
         fillOpacity: 0.5, //values from 0 to 1
-        color: "green", //border color
+        color: cmColor[type], //border color
         weight: 1, //border thickness
         radius: cmRadius,
         index: cmCount['iNat'],
-        occurrence: (occJson.species||occJson.species_guess)||'none',
-        time: getDateYYYYMMDD(occJson.eventDate)
+        occurrence: (obsJson.species||obsJson.species_guess)||'none',
+        time: getDateYYYYMMDD(obsJson.eventDate)
     }).bindPopup(popup);
 
     if (typeof cmGroup['iNat'] === 'undefined') {
@@ -610,7 +622,7 @@ if (document.getElementById("inatTimer")) {
       setZoom(vtOnly);
       initMap();
       getData(1);
-      var slider = document.getElementById("dataDays");
+      var slider = document.getElementById("getDays");
       var output = document.getElementById("dayValue");
       if (vtOnly) {
         stateLayer.addTo(valMap); stateLayer.bringToBack();
@@ -622,21 +634,27 @@ if (document.getElementById("inatTimer")) {
       }
     });
     document.getElementById("getObs").addEventListener("click", function() {
-      getObs = !getObs;
+      console.log(`getObs click`);
+      getObs = 1; getIDs = 0;
+      initMap();
+      getData(1);
     });
     document.getElementById("getIDs").addEventListener("click", function() {
-      getIDs = !getIDs;
+      console.log(`getIDs click`);
+      getIDs = 1; getObs = 0;
+      initMap();
+      getData(1);
     });
-    document.getElementById("dataDays").addEventListener("change", function() {
-      var slider = document.getElementById("dataDays");
+    document.getElementById("getDays").addEventListener("change", function() {
+      var slider = document.getElementById("getDays");
       var output = document.getElementById("dayValue");
       output.innerHTML = slider.value + ' Days';; // Display the default slider value
-      dataDays = slider.value;
+      getDays = slider.value;
 
       // Update the current slider value (each time you drag the slider handle)
       slider.oninput = function() {
           output.innerHTML = this.value + ' Days';
-          dataDays = this.value
+          getDays = this.value
           initMap();
           getData(1);
         }
@@ -647,12 +665,10 @@ if (document.getElementById("inatTimer")) {
 }
 
 function getData(init=0) {
+  console.log(`getData | getObs:${getObs} | getIDs:${getIDs} | getDays:${getDays}`);
   if (getObs) getInatObs(init);
   if (getIDs) getInatIDs(init);
-  //getStamp();
 }
-
-//interval = 1000;
 
 function startData() {
   getData(1);
