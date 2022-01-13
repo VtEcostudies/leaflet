@@ -40,21 +40,32 @@
 				<input type="range" min="0" max="9" value="0" class="slider" id="getDays" name="getDays"><br>
 				<label for="getDays" id="dayValue">0 Days</label>
       </div> <!-- col -->
-			<div class="col-sm-1">
+			<div class="col-sm-3">
+				<h3 id="title">VAL iNaturalist<br>Observations: 0</h4>
+      </div> <!-- col -->
+			<div class="col-sm-2">
 				<input type="checkbox" id="runTimer" name="runTimer" class="form-check-input" checked>
 				<label for="runTimer">Update/30s</label><br>
 				<input type="checkbox" id="vtOnly" name="vtOnly" class="form-check-input" checked>
 				<label for="vtOnly">VT-Only</label>
 			</div> <!-- col -->
-			<div class="col-sm-1">
+			<div class="col-sm-2">
 				<input type="radio" id="getObs" name="dataType" value="0" class="form-check-input" checked>
 				<label for="getObs">Observations</label><br>
 				<input type="radio" id="getIDs" name="dataType" value="1" class="form-check-input">
 				<label for="getIDs">Identifications</label>
 			</div> <!-- col -->
-      <div class="col-sm-4">
-				<h4>VAL iNaturalist Observations</h4>
-      </div> <!-- col -->
+			<div class="col-sm-2">
+				<input type="radio" id="needsID" name="quality" value="0" class="form-check-input" checked>
+				<label for="needsID">Needs ID</label><br>
+				<input type="radio" id="research" name="quality" value="1" class="form-check-input">
+				<label for="research">Research</label>
+			</div> <!-- col -->
+<!--
+			<div class="col-sm-1">
+				<label id="ctMap">Obs: 0</label>
+      </div>
+-->
     </div> <!-- row -->
   </div> <!-- container -->
 

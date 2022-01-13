@@ -9,6 +9,13 @@ Notes:
 Convert kml to geoJson:
   https://github.com/mapbox/togeojson
   - togeojson file.kml > file.geojson
+
+To-Do:
+  - needs id
+  - show common name in popup
+  - show counters/status:
+    - clock
+    -
 */
 import {getCanonicalName, getScientificName, getAllData} from "./gbifAutoComplete.js";
 
@@ -46,6 +53,8 @@ var vtOnly = 1;
 var runTimer = 1;
 var getObs = 1;
 var getIDs = 0;
+var needID = 1;
+var research = 0;
 
 //for standalone use
 function addMap() {
@@ -400,13 +409,16 @@ function initMap() {
 }
 
 function getStamp(offsetSecs=30) {
-  const loc = moment(moment().valueOf() -  offsetSecs * 1000).format('YYYY-MM-DDTHH:mm:ss');
-  const utc = moment.utc(moment().valueOf() - offsetSecs * 1000).format('YYYY-MM-DDTHH:mm:ss');
-  //console.log(`getStamp | local: ${loc} | utc: ${utc}`);
-  return utc;
+  var loc = moment(moment().valueOf() -  offsetSecs * 1000).format('YYYY-MM-DDTHH:mm:ss');
+  var utc = moment.utc(moment().valueOf() - offsetSecs * 1000).format('YYYY-MM-DDTHH:mm:ss');
+  loc = moment().format();
+  console.log(`getStamp | local: ${loc} | utc: ${utc}`);
+  //console.log(`getStamp ESCAPED| local: ${escape(loc)} | utc: ${escape(utc)}`);
+  //return utc;
+  return escape(loc);
 }
 
-function getDate(offsetDays=1) {
+function getDate(offsetDays=0) {
   const date = moment(moment().valueOf() -  offsetDays*1000*3600*24).format('YYYY-MM-DD');
   console.log(`getDate | ${date}`);
   return date;
@@ -420,14 +432,15 @@ function getDate(offsetDays=1) {
 function getInatObs(init=0) {
   //var mapExt = getMapLlExtents();
   var baseUrl = 'https://api.inaturalist.org/v1/observations';
-  var begDate = `?d1=${getStamp(30)}`; if (init & vtOnly) {begDate = `?d1=${getDate(getDays)}`;}
-  var endDate = `&d2=${getStamp(0)}`;
+  var begDate = `?created_d1=${getStamp(30)}`; if (init && vtOnly) {begDate = `?d1=${getDate(getDays)}`;}
+  //var endDate = `&created_d2=${getStamp(0)}`;
   var project = '&project_id=vermont-atlas-of-life';
   var identified = '&current=true';
   //var bbox = `&nelat=${mapExt.nelat}&nelng=${mapExt.nelng}&swlat=${mapExt.swlat}&swlng=${mapExt.swlng}`;
   var order = '&order=desc&order_by=updated_at';
-  var iNatUrl = baseUrl + begDate + order;
-  if (vtOnly) {iNatUrl = baseUrl + begDate + project + order;}
+  var quality = needsID?'&quality_grade=needs_id':'&quality_grade=research';
+  var iNatUrl = baseUrl + begDate + quality;
+  if (vtOnly) {iNatUrl = baseUrl + begDate + project + quality;}
 
   //console.log('getInatObs', iNatUrl);
   // start a new chain of fetch events
@@ -437,13 +450,14 @@ function getInatObs(init=0) {
 function getInatIDs(init=0) {
   //var mapExt = getMapLlExtents();
   var baseUrl = 'https://api.inaturalist.org/v1/identifications';
-  var begDate = `?observation_created_d1=${getStamp(30)}`; if (init & vtOnly & getDays) {begDate = `?d1=${getDate(getDays)}`;}
-  var endDate = `&observation_created_d2=${getStamp(0)}`;
+  var begDate = `?observation_created_d1=${getStamp(30)}`; if (init && vtOnly && getDays) {begDate = `?observation_created_d1=${getDate(getDays)}`;}
+  //var endDate = `&observation_created_d2=${getStamp(0)}`;
   var place = '&place_id=47';
   //var bbox = `&nelat=${mapExt.nelat}&nelng=${mapExt.nelng}&swlat=${mapExt.swlat}&swlng=${mapExt.swlng}`;
   var order = '&order=desc&order_by=updated_at';
-  var iNatUrl = baseUrl + begDate + order;
-  if (vtOnly) {iNatUrl = baseUrl + begDate + place + order;}
+  var quality = needsID?'&quality_grade=needs_id':'&quality_grade=research';
+  var iNatUrl = baseUrl + begDate + quality;
+  if (vtOnly) {iNatUrl = baseUrl + begDate + place + quality;}
 
   //console.log('getInatIDs', iNatUrl);
   // start a new chain of fetch events
@@ -520,6 +534,12 @@ function updateInatMap(iNatJsonData, type=0) {
       continue;
     }
 
+    if (typeof cmGroup['iNat'] === 'undefined') {
+      console.log(`cmGroup[iNat] is undefined...adding.`);
+      cmCount['iNat'] = 0;
+      cmGroup['iNat'] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
+    }
+
     cmCount['iNat']++;
     cmCount['all']++;
 
@@ -529,6 +549,7 @@ function updateInatMap(iNatJsonData, type=0) {
     }).setContent(`
         Taxon Name: ${obsJson.taxon?obsJson.taxon.name:''}<br>
         Taxon Rank: ${obsJson.taxon?obsJson.taxon.rank:''}<br>
+        Common Name: ${obsJson.taxon?obsJson.taxon.preferred_common_name:''}<br>
         Description: ${obsJson.description||''}<br>
         <a href="${obsJson.uri||''}">${obsJson.uri||''}</a><br>
         Observed on: ${moment(obsJson.time_observed_at).format('YYYY-MM-DD HH:mm:ss')||''}<br>
@@ -549,17 +570,16 @@ function updateInatMap(iNatJsonData, type=0) {
         time: getDateYYYYMMDD(obsJson.eventDate)
     }).bindPopup(popup);
 
-    if (typeof cmGroup['iNat'] === 'undefined') {
-      console.log(`cmGroup[iNat] is undefined...adding.`);
-      cmGroup['iNat'] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-      //speciesLayerControl.addOverlay(cmGroup['iNat'], `<label id="iNat_Obs">iNat Obs</label>`);
-      cmGroup['iNat'].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
-    } else {
-      cmGroup['iNat'].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
-    }
+    cmGroup['iNat'].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
 
     marker.bringToFront(); //this is not necessary, currently. can't hurt though.
   }
+  //var ctMap = document.getElementById("ctMap");
+  //if (getObs) {ctMap.innerHTML = `Obs: ${cmCount['iNat']}`;}
+  //else {ctMap.innerHTML = `IDs: ${cmCount['iNat']}`;}
+  var title = document.getElementById("title");
+  if (getObs) {title.innerHTML = `VAL iNaturalist<br>Observations: ${cmCount['iNat']}`;}
+  else {title.innerHTML = `VAL iNaturalist<br>Identifications: ${cmCount['iNat']}`;}
 }
 
 /*
@@ -610,6 +630,9 @@ function initValStandalone() {
     if (!boundaryLayerControl) {addBoundaries();}
 }
 
+/*
+
+*/
 if (document.getElementById("inatTimer")) {
   window.addEventListener("load", function() {
     initValStandalone(); //show the map, add controls
@@ -640,10 +663,26 @@ if (document.getElementById("inatTimer")) {
       getObs = 1; getIDs = 0;
       initMap();
       getData(1);
+      var title = document.getElementById("title");
+      title.innerHTML = 'VAL iNaturalist<br>Observations: 0'
     });
     document.getElementById("getIDs").addEventListener("click", function() {
       console.log(`getIDs click`);
       getIDs = 1; getObs = 0;
+      initMap();
+      getData(1);
+      var title = document.getElementById("title");
+      title.innerHTML = 'VAL iNaturalist<br>Identifications: 0'
+    });
+    document.getElementById("needsID").addEventListener("click", function() {
+      console.log(`needsID click`);
+      needsID = 1; research = 0;
+      initMap();
+      getData(1);
+    });
+    document.getElementById("research").addEventListener("click", function() {
+      console.log(`research click`);
+      research = 1; needsID = 0;
       initMap();
       getData(1);
     });
