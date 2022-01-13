@@ -17,7 +17,7 @@ To-Do:
     - clock
     -
 */
-import {getCanonicalName, getScientificName, getAllData} from "./gbifAutoComplete.js";
+//import {getCanonicalName, getScientificName, getAllData} from "./gbifAutoComplete.js";
 
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
 var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
@@ -490,6 +490,8 @@ function loadPage(occXHR, url, page) {
     occXHR.open("GET", uri, true);
     occXHR.responseType = 'json'; //looks like you need to add this after the open, and use 'reponse' above, not 'responseText'
     occXHR.setRequestHeader("Content-type", "application/json");
+    //occXHR.setRequestHeader('Cache-Control', 'no-cache');
+    //occXHR.setRequestHeader('Cache-Control', 'max-age=0');
     occXHR.send();
 }
 
@@ -510,6 +512,7 @@ async function occResults(occXHR, url, type=0) {
 
 //update the map with a page of data. type is 0:observations, 1:identifications
 function updateInatMap(iNatJsonData, type=0) {
+  var photo,sound,cname,taxon,trank = null;
 
   for (var i = 0; i < iNatJsonData.length; i++) {
     var obsJson = {};
@@ -543,20 +546,29 @@ function updateInatMap(iNatJsonData, type=0) {
     cmCount['iNat']++;
     cmCount['all']++;
 
+    photo = obsJson.photos.length?`<img src="${obsJson.photos[0].url}"></img>`:null;
+    sound = obsJson.sounds.length?`<a href="${obsJson.sounds[0].file_url}">Sound</a>`:null;
+    cname = obsJson.taxon?obsJson.taxon.preferred_common_name:null;
+    taxon = obsJson.taxon?obsJson.taxon.name:null;
+    trank = obsJson.taxon?obsJson.taxon.rank:null;
+
     var popup = L.popup({
-        maxHeight: 200,
+        maxHeight: 300,
         keepInView: true,
     }).setContent(`
+        ${cname?'Common Name: ':''}${cname?cname:''}${cname?'<br>':''}
         Taxon Name: ${obsJson.taxon?obsJson.taxon.name:''}<br>
         Taxon Rank: ${obsJson.taxon?obsJson.taxon.rank:''}<br>
-        Common Name: ${obsJson.taxon?obsJson.taxon.preferred_common_name:''}<br>
-        Description: ${obsJson.description||''}<br>
         <a href="${obsJson.uri||''}">${obsJson.uri||''}</a><br>
         Observed on: ${moment(obsJson.time_observed_at).format('YYYY-MM-DD HH:mm:ss')||''}<br>
         Created on: ${moment(obsJson.created_at).format('YYYY-MM-DD HH:mm:ss')||''}<br>
         Updated at: ${moment(obsJson.updated_at).format('YYYY-MM-DD HH:mm:ss')||''}<br>
         Place guess: ${obsJson.place_guess||''}<br>
-        Quality/Grade: ${obsJson.quality_grade||''}<br>`);
+        Quality/Grade: ${obsJson.quality_grade||''}<br>
+        ${photo?photo:''}${photo?'<br>':''}
+        ${sound?sound:''}${sound?'<br>':''}
+        Description: ${obsJson.description||''}<br>
+        `);
 
     var marker = L.circleMarker(llLoc, {
         //renderer: myRenderer, //using this puts markers behind overlays. do we need it? We do not.
@@ -569,6 +581,10 @@ function updateInatMap(iNatJsonData, type=0) {
         occurrence: (obsJson.species||obsJson.species_guess)||'none',
         time: getDateYYYYMMDD(obsJson.eventDate)
     }).bindPopup(popup);
+
+    if (photo) {marker.bindTooltip(photo);}
+    else if (cname) {marker.bindTooltip(cname);}
+    else if (taxon) {marker.bindTooltip(taxon+` (${trank})`);}
 
     cmGroup['iNat'].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
 
