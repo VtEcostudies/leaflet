@@ -415,7 +415,8 @@ function getStamp(offsetSecs=30) {
   console.log(`getStamp | local: ${loc} | utc: ${utc}`);
   //console.log(`getStamp ESCAPED| local: ${escape(loc)} | utc: ${escape(utc)}`);
   //return utc;
-  return escape(loc);
+  //return escape(loc);
+  return loc;
 }
 
 function getDate(offsetDays=0) {
@@ -432,15 +433,16 @@ function getDate(offsetDays=0) {
 function getInatObs(init=0) {
   //var mapExt = getMapLlExtents();
   var baseUrl = 'https://api.inaturalist.org/v1/observations';
-  var begDate = `?created_d1=${getStamp(30)}`; if (init && vtOnly) {begDate = `?d1=${getDate(getDays)}`;}
+  var begDateC = `?created_d1=${getStamp(30)}`; if (init && vtOnly) {begDateC = `?d1=${getDate(getDays)}`;}
+  var begDateU = `?d1=${getStamp(30)}`; if (init && vtOnly) {begDateU = `?d1=${getDate(getDays)}`;}
   //var endDate = `&created_d2=${getStamp(0)}`;
   var project = '&project_id=vermont-atlas-of-life';
   var identified = '&current=true';
   //var bbox = `&nelat=${mapExt.nelat}&nelng=${mapExt.nelng}&swlat=${mapExt.swlat}&swlng=${mapExt.swlng}`;
   var order = '&order=desc&order_by=updated_at';
   var quality = needsID?'&quality_grade=needs_id':'&quality_grade=research';
-  var iNatUrl = baseUrl + begDate + quality;
-  if (vtOnly) {iNatUrl = baseUrl + begDate + project + quality;}
+  var iNatUrl = baseUrl + begDateU + quality;
+  if (vtOnly) {iNatUrl = baseUrl + begDateU + project + quality;}
 
   //console.log('getInatObs', iNatUrl);
   // start a new chain of fetch events
@@ -703,18 +705,13 @@ if (document.getElementById("inatTimer")) {
       getData(1);
     });
     document.getElementById("getDays").addEventListener("change", function() {
+      console.log(`Slider control 'getDays' changed.`);
       var slider = document.getElementById("getDays");
       var output = document.getElementById("dayValue");
       output.innerHTML = slider.value + ' Days';; // Display the default slider value
       getDays = slider.value;
-
-      // Update the current slider value (each time you drag the slider handle)
-      slider.oninput = function() {
-          output.innerHTML = this.value + ' Days';
-          getDays = this.value
-          initMap();
-          getData(1);
-        }
+      initMap();
+      getData(1);
       });
 
   });
