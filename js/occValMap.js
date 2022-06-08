@@ -3,7 +3,6 @@
 Leaflet experiment.
 Goals:
 - load a json array from VAL Data Portal Occurrence API and populate the map with point occurrence data
-
 Convert kml to geoJson:
   https://github.com/mapbox/togeojson
   - togeojson file.kml > file.geojson
@@ -146,9 +145,7 @@ function onZoomEnd(e) {
 
 /*
   Add boundaries to map and control. Converted from KML to geoJSON
-
   https://github.com/mapbox/leaflet-omnivore (no longer used)
-
   https://github.com/mapbox/togeojson
   - togeojson file.kml > file.geojson
  */
@@ -164,23 +161,19 @@ async function addBoundaries() {
 
 /*
     console.log("addBoundaries (kml) ...");
-
     stateLayer = omnivore.kml('kml/LineString_VT_State_Boundary.kml');
     countyLayer = omnivore.kml('kml/LineString_VT_County_Boundaries.kml');
     townLayer = omnivore.kml('kml/LineString_VT_Town_Boundaries.kml');
     bioPhysicalLayer = omnivore.kml('kml/LineString_VT_Biophysical_Regions.kml');
-
     boundaryLayerControl.addOverlay(stateLayer, "State Boundary");
     boundaryLayerControl.addOverlay(countyLayer, "County Boundaries");
     boundaryLayerControl.addOverlay(townLayer, "Town Boundaries");
     boundaryLayerControl.addOverlay(bioPhysicalLayer, "Bio-physical Boundaries");
-
     kmlGroup = new L.FeatureGroup()
     kmlGroup.addLayer(stateLayer);
     kmlGroup.addLayer(countyLayer);
     kmlGroup.addLayer(townLayer);
     kmlGroup.addLayer(bioPhysicalLayer);
-
     //stateLayer.addTo(valMap);
     //countyLayer.addTo(valMap);
     //bioPhysicalLayer.addTo(valMap);
@@ -196,20 +189,16 @@ async function addBoundaries() {
     function getTownStyle(feature) {return {color: 'brown', weight: 1};}
     var bioPhysicalGroup = L.geoJSON(null, {style: getBioPhysicalStyle});
     function getBioPhysicalStyle(feature) {return {color: '#373737', weight: 1};}
-
     var prioritySurveyGroup = L.geoJSON(null, {style: getprioritySurveyStyle});
     function getprioritySurveyStyle(feature) {return {color: '#373737', weight: 1};}
-
     stateLayer = omnivore.kml('kml/LineString_VT_State_Boundary.kml', null, stateGroup);
     countyLayer = omnivore.kml('kml/LineString_VT_County_Boundaries.kml', null, countyGroup);
     townLayer = omnivore.kml('kml/LineString_VT_Town_Boundaries.kml', null, townGroup);
     bioPhysicalLayer = omnivore.kml('kml/LineString_VT_Biophysical_Regions.kml', null, bioPhysicalGroup);
-
     boundaryLayerControl.addOverlay(stateLayer, "State Boundary");
     boundaryLayerControl.addOverlay(countyLayer, "County Boundaries");
     boundaryLayerControl.addOverlay(townLayer, "Town Boundaries");
     boundaryLayerControl.addOverlay(bioPhysicalLayer, "Bio-physical Boundaries");
-
     countyLayer.addTo(valMap);
 */
     console.log("addBoundaries (geoJson) ...");
@@ -683,9 +672,7 @@ async function occResults(occXHR, url, taxonName) {
 /*
   2021-06-07 Updates to add an API call to bie-ws first to get the LSID for taxa first. This emulates the
   ALA species lookup behavior and appears to work.
-
   This now automatically breaks taxa into sub-taxa. To disable this feature, set the global flag
-
     taxaBreakout = 0;
 */
 async function updateMap(occJsonArr, taxonName) {

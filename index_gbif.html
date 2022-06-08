@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8"/>
+	<link rel="stylesheet" href="css/bootstrap.css">
+	<!--<link rel="stylesheet" href="css/bootstrap-theme.css">-->
+	<link rel="stylesheet" href="css/vce-styles.css">
+
+    <link rel="SHORTCUT ICON" href="img/favicon.ico"/>
+
+    <!-- Leaflet's CSS -->
+		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+			integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+			crossorigin=""/>
+
+    <!-- Make sure you put this AFTER Leaflet's CSS -->
+		<script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+		  integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+		  crossorigin=""></script>
+
+    <!-- omnivore lets us import file formats other than geoJSON.  eg. KML -->
+    <script src='//api.tiles.mapbox.com/mapbox.js/plugins/leaflet-omnivore/v0.3.1/leaflet-omnivore.min.js'></script>
+
+    <!-- VectorGrid extension for Leaflet (enables vector tiles maps from GBIF) -->
+    <script src="https://unpkg.com/leaflet.vectorgrid@latest/dist/Leaflet.VectorGrid.js"></script>
+
+		<script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
+
+    <script src="js/jquery.min.js"></script>
+    <script src="js/tether.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/jquery-ui.min.js"></script>
+    <script src="js/moment.min.js"></script>
+
+    <script type="module" src="js/occGbifMap.js"></script>
+    <script type="module" src="js/gbifAutoComplete.js"></script>
+
+</head>
+<body>
+
+    <div class="vceHeader">
+      <div class="row">
+        <div class="col-md-3">
+            <a href="https://val.vtecostudies.org"><img src="img/val_logo_medium.png"/></a>
+        </div> <!-- col -->
+        <div class="col-md-7">
+            <a href="http://vtatlasoflife.org"><h1>Vermont Atlas of Life Species Map<font size="2">(Beta)</font></h1></a>
+        </div> <!-- col -->
+      </div> <!-- row -->
+    </div> <!-- container -->
+
+    <div id="gbifStandalone" class="jumbotron" style="padding-top:15px;">
+        <div class="row">
+
+            <div id="vtatlas_webmap" class="col-md-12" style="padding-left:25px;">
+                <label>Species Name: (</label>
+                <input type="radio" id="sciName" name="nameType" value="scientific_name" checked/><label for="sciName">Scientific</label>
+                <input type="radio" id="comName" name="nameType" value="common_name" disabled=true/><label for="comName">Common</label>
+                )
+                <!-- gbif autocomplete scientific name lookup -->
+                <input type="text" autocomplete="off" id="gbif_autocomplete_name" size=40 list="gbif_autocomplete_list">
+                <datalist id="gbif_autocomplete_list"></datalist>
+
+                <input type="submit" id="getData" value="Get Data"/>
+								<input type="submit" id="abortData" value="Abort"/>
+                <input type="submit" id="getInfo" value="Get Species Info"/>
+
+                <!-- this works on windows/localhost but height is zero on linux/vtatlasoflife.org
+                <div id="mapid" style="width: 100%; height: 100%;"></div>
+                -->
+                <div id="mapid" style="width: 100%; height: 600px;"></div>
+
+                <label id="zoomLabel" class="small vceOutline"></label>
+                <label id="apiUrlLabel" class="small vceOutline"></label>
+                <label id="jsonResults" class="small vceOutline"></label>
+            </div> <!-- col -->
+        </div> <!-- /row -->
+    </div> <!-- /container -->
+</body>
+</html>
