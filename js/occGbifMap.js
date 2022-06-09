@@ -42,6 +42,7 @@ var testData = false //flag to enable test data for development and debugging
 var surveyBlocksLady = false; //flag a lady beetle atlas survey block map
 var surveyBlocksEAME = false; //flag an EAME survey block map
 var taxaBreakout = 0; //flag to break sub-taxa into separate layers with counts.
+var showAccepted = 0; //flag to show taxa by acceptedScientificName instead of scientificName
 var baseMapDefault = null;
 
 var occXHR = null; //make this global so we can abort a data request
@@ -572,7 +573,8 @@ async function occResults(occXHR, url, taxonName) {
 async function updateMap(occJsonArr, taxonName) {
     var idTaxonName = taxonName.split(' ').join('_'); //this is updated later if we got multiple scientificNames for one taxonName
     var sciName = taxonName; //this is updated later if we got multiple scientificNames for one taxonName
-    var idSciName;
+    var idSciName = null;
+    var canName = null;
 
     for (var i = 0; i < occJsonArr.length; i++) {
         var occJson = occJsonArr[i];
@@ -585,7 +587,9 @@ async function updateMap(occJsonArr, taxonName) {
             continue;
         }
 
-        if (taxaBreakout) sciName = occJson.scientificName
+        if (taxaBreakout) {sciName = occJson.scientificName;}
+        canName = parseCanonicalFromScientific(occJson);
+        if (canName) {sciName = canName;}
         idSciName = sciName.split(' ').join('_');
         if (typeof cmCount[sciName] === 'undefined') {cmCount[sciName] = 0;}
         cmCount[sciName]++;
@@ -621,14 +625,10 @@ async function updateMap(occJsonArr, taxonName) {
           cmGroup[sciName].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
         }
 
-        if (testHarness) {
-            marker.bindTooltip(`${cmCount[sciName]}`, {opacity: 0.9});
+        if (occJson.eventDate) {
+            marker.bindTooltip(`${sciName}<br>${getDateYYYYMMDD(occJson.eventDate)}`);
         } else {
-            if (occJson.eventDate) {
-                marker.bindTooltip(`${sciName}<br>${getDateYYYYMMDD(occJson.eventDate)}`);
-            } else {
-                marker.bindTooltip(`${sciName}<br>No date supplied.`);
-            }
+            marker.bindTooltip(`${sciName}<br>No date supplied.`);
         }
     } //end for-loop
 
@@ -640,11 +640,33 @@ async function updateMap(occJsonArr, taxonName) {
     var id = null;
     Object.keys(cmGroup).forEach((sciName) => {
       id = sciName.split(' ').join('_');
-      if (document.getElementById(id) && sciName.includes(taxonName)) {
+      if (document.getElementById(id) && sciName.toLowerCase().includes(taxonName.toLowerCase())) {
           console.log(`-----match----->> ${id} | ${sciName}`, cmCount[sciName], cmTotal[taxonName]);
           document.getElementById(id).innerHTML = `${sciName} (${cmCount[sciName]}/${cmTotal[taxonName]})`;
       }
     });
+}
+
+
+function parseCanonicalFromScientific(occJson) {
+  var toks = occJson.scientificName.split(' ');
+  var name = null;
+  switch(occJson.taxonRank.toUpperCase()) {
+    case 'SUBSPECIES':
+    case 'VARIETY':
+    case 'FORM':
+      name = `${toks[0]} ${toks[1]} ${toks[2]}`;
+      break;
+    case 'SPECIES':
+      name = `${toks[0]} ${toks[1]}`;
+      name = occJson.species;
+      break;
+    case 'GENUS':
+    defuault:
+      name = `${toks[0]}`;
+      break;
+  }
+  return name;
 }
 
 /*
