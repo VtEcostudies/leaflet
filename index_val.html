@@ -33,7 +33,7 @@
     <script src="js/jquery-ui.min.js"></script>
     <script src="js/moment.min.js"></script>
 
-    <script type="module" src="js/occGbifMap.js"></script>
+    <script type="module" src="js/occValMap.js"></script>
     <script type="module" src="js/gbifAutoComplete.js"></script>
 
 </head>
@@ -50,20 +50,19 @@
       </div> <!-- row -->
     </div> <!-- container -->
 
-    <div id="gbifStandalone" class="jumbotron" style="padding-top:15px;">
+    <div id="valStandalone" class="jumbotron" style="padding-top:15px;">
         <div class="row">
 
             <div id="vtatlas_webmap" class="col-md-12" style="padding-left:25px;">
                 <label>Species Name: (</label>
                 <input type="radio" id="sciName" name="nameType" value="scientific_name" checked/><label for="sciName">Scientific</label>
-                <input type="radio" id="comName" name="nameType" value="common_name" disabled=true/><label for="comName">Common</label>
+                <input type="radio" id="comName" name="nameType" value="common_name" disabled="true"/><label for="comName">Common</label>
                 )
                 <!-- gbif autocomplete scientific name lookup -->
                 <input type="text" autocomplete="off" id="gbif_autocomplete_name" size=40 list="gbif_autocomplete_list">
                 <datalist id="gbif_autocomplete_list"></datalist>
 
                 <input type="submit" id="getData" value="Get Data"/>
-								<input type="submit" id="abortData" value="Abort"/>
                 <input type="submit" id="getInfo" value="Get Species Info"/>
 
                 <!-- this works on windows/localhost but height is zero on linux/vtatlasoflife.org
