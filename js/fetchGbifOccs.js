@@ -2,10 +2,10 @@ let gbifApi = "https://api.gbif.org/v1";
 let datasetKeys = {occVba1:"0901cecf-55f1-447e-8537-1f7b63a865a0", chkVba1:"73eb16f0-4b06-4347-8069-459bc2d96ddb"};
 let butterflies = "taxon_key=6953&taxon_key=5473&taxon_key=7017&taxon_key=9417&taxon_key=5481&taxon_key=1933999";
 export const occData = {
-    'vtb1':{'file':'vtb1_occs_1000-2002_simple.json','description':'VT Obs before 2002',color:'Red'},
-    'vtb2':{'file':'vtb2_occs_2008-2022_simple.json','description':'VT Obs 2002-2022',color:'Blue'},
-    'vba1':{'file':'vba1_occs_simple.json','description':'1st VT Atlas 2002-2007',color:'Yellow'},
-    'vba2':{'file':'vba2_occs_simple.json','description':'2nd VT Atlas 2023-2028',color:'Cyan'}
+    'vtb1':{'file':'vtb1_occs_1000-2002.json','description':'VT Obs before 2002',color:'Red'},
+    'vtb2':{'file':'vtb2_occs_2008-2022.json','description':'VT Obs 2002-2022',color:'Blue'},
+    'vba1':{'file':'vba1_occs_2002-2007.json','description':'1st VT Atlas 2002-2007',color:'Yellow'},
+    'vba2':{'file':'vba2_occs_2023-2028.json','description':'2nd VT Atlas 2023-2028',color:'Cyan'}
 };
 /*
 https://api.gbif.org/v1/occurrence/search
@@ -40,6 +40,9 @@ console.log(`getOccsByFilters(${offset}, ${limit}, ${datasetKey}, ${geometry}, $
 
 export async function getOccsFromFile(dataset='vba1') {
     try {
+        let parr = window.location.pathname.split('/'); delete parr[parr.length-1];
+        let path = parr.join('/');
+        console.log(`getOccsFromFile:`, `${window.location.protocol}//${window.location.host}/${path}${occData[dataset].file}`);
         let res = await fetch(occData[dataset].file);
         let json = await res.json();
         console.log(`getOccsFromFile(${occData[dataset].file}) RESULT:`, json);

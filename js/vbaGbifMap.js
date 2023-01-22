@@ -427,7 +427,8 @@ async function addToMap(occJsonArr, groupField='datasetKey', groupColor='Red') {
       if (!occJson.decimalLatitude || !occJson.decimalLongitude) {
         if (typeof cmCount['missing'] === 'undefined') {cmCount['missing'] = 0;}
         cmCount['missing']++;
-        console.log('WARNING: Occurrence Record without Lat/Lon values:', occJson.key, 'missing:', cmCount['missing'], 'count:', cmCount['all']);
+        let gbifID = occJson.key ? occJsson.key : occJson.gbifID;
+        console.log('WARNING: Occurrence Record without Lat/Lon values:', gbifID, 'missing:', cmCount['missing'], 'count:', cmTotal[grpName]);
         continue;
       }
 
@@ -450,8 +451,8 @@ async function addToMap(occJsonArr, groupField='datasetKey', groupColor='Red') {
           time: getDateYYYYMMDD(occJson.eventDate)
       }).bindPopup(popup);
 
-      marker.bringToFront(); //this is not necessary, currently. can't hurt though.
-      marker.addTo(valMap);
+      //marker.bringToFront(); //not necessary, currently. can't hurt though.
+      //marker.addTo(valMap); //not necessary - by adding layerGroup to map, then marker to layerGroup, that does it.
 
       if (typeof cmGroup[grpName] === 'undefined') {
         console.log(`cmGroup[${grpName}] is undefined...adding.`);
@@ -631,6 +632,12 @@ async function getFileData(dataset='vba1') {
   addToMap(occF.rows, occData[dataset].description, occData[dataset].color);
 }
 
+function showUrlInfo(dataset='vba1') {
+  if (document.getElementById("urlInfo")) {
+    document.getElementById("urlInfo").innerHTML += `<a target="_blank" href="./${occData[dataset].file}">${occData[dataset].description}</a></br>`;
+  }
+}
+
 /*
  * Clear any markers from the map
  */
@@ -668,18 +675,21 @@ if (document.getElementById("getVtb1")) {
   document.getElementById("getVtb1").addEventListener("click", async () => {
     abortData = false;
     getFileData('vtb1');
+    showUrlInfo('vtb1');
   });
 }
 if (document.getElementById("getVtb2")) {
   document.getElementById("getVtb2").addEventListener("click", async () => {
     abortData = false;
     getFileData('vtb2');
+    showUrlInfo('vtb2');
   });
 }
 if (document.getElementById("getVba1")) {
   document.getElementById("getVba1").addEventListener("click", async () => {
     abortData = false;
     getFileData('vba1');
+    showUrlInfo('vba1');
   });
 }
 // Add a listener to handle the 'Clear Data' button click
