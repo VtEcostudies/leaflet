@@ -1,8 +1,8 @@
 /*
+10/23/2018
+Leaflet experiment.
 Goals:
-- Load a json array from GBIF Occurrence API and populate the map with point occurrence data
-- Enable display of multiple taxa on one map with user-controlled colors
-- Allow higher-order taxa to be mapped as one, or broken-out by sub-taxa
+- load a json array from VAL Data Portal Occurrence API and populate the map with point occurrence data
 
 Convert kml to geoJson:
   https://github.com/mapbox/togeojson
@@ -46,7 +46,7 @@ var showAccepted = 0; //flag to show taxa by acceptedScientificName instead of s
 var baseMapDefault = null;
 
 var occXHR = null; //make this global so we can abort a data request
-var nameType = 0; //0=scientificName, 1=commonName (not implemented yet)
+var nameType = 0; //0=scientificName, 1=commonName
 
 //for standalone use
 function addMap() {
@@ -492,51 +492,58 @@ function abortDataLoad() {
 *
 * max limit is 300 results per page
 */
-function addGbifOccByTaxon(taxonObj) {
+function addGbifOccByTaxon(taxonName=false) {
 
-    console.log(`addGbifOccByTaxon()`, taxonObj);
+    console.log(`addGbifOccByTaxon(${taxonName})`);
 
     var baseUrl = 'https://api.gbif.org/v1/occurrence/search';
     var vermont = 'state_province=Vermont&advanced=1'
     var limit = `limit=${xhrRecsPerPage}`;
     if (!taxonName) {taxonName = getCanonicalName();}
-    var query = `scientific_name=${taxonObj.name}`;
-    if (taxonObj.key) {query = `taxon_key=${taxonObj.key}`;}
+    var query = `scientific_name=${taxonName}`;
+    if (nameType) {query = `q=${taxonName}`;} //commonName uses q
     var gbifUrl = `${baseUrl}?${vermont}&${query}&${limit}`;
     if(document.getElementById("apiUrlLabel")) {document.getElementById("apiUrlLabel").innerHTML = (gbifUrl);}
 
-    console.log(`addGbifOccByTaxon API query for `, taxonObj, gbifUrl);
+    console.log(`addGbifOccByTaxon API query for taxonName ${taxonName}:`, gbifUrl);
 
     // start a new chain of fetch events
-    initOccRequest(gbifUrl, taxonObj);
+    initOccRequest(gbifUrl, taxonName);
 }
 
-function initOccRequest(url, taxonObj) {
+function initOccRequest(url, taxonName) {
     //var occXHR = new XMLHttpRequest();
     occXHR = new XMLHttpRequest();
 
     //handle request responses here in this callback
     occXHR.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
-            occResults(this, url, taxonObj);
+            occResults(this, url, taxonName);
         } else if (this.status > 299) {
-          console.log(`initOccRequest(${taxonObj.name}) --> ${url} |  readyState: ${this.readyState} | status: ${this.status}`);
+          console.log(`initOccRequest(${taxonName}) --> ${url} |  readyState: ${this.readyState} | status: ${this.status}`);
         }
     };
 
     //load the first N records of data, which initiates subsequent page loads
-    loadPage(occXHR, url, taxonObj, 0);
+    loadPage(occXHR, url, taxonName, 0);
 }
 
-function loadPage(occXHR, url, taxonObj, offset  ) {
+function loadPage(occXHR, url, taxonName, offset  ) {
     occXHR.open("GET", url+`&offset=${offset}`, true);
+    /*
+     * NOTE: the VAL ALA site does not respond with a "Content-type" header.  We only get an
+     * "x-requested-with" pre-flight header response.  This means we can't send a *request* having this header.
+     * The two lines beloew, taken from the iNat code, asked the server to send us JSON.
+     * For VAL, we let the reponse return as text and then we JSON.parse(response).
+     */
+    //occXHR.responseType = 'json';  //looks like you need to add this after the open, and use 'reponse' above, not 'responseText'
+    //occXHR.setRequestHeader("Content-type", "application/json");
     occXHR.send();
 }
 
-async function occResults(occXHR, url, taxonObj) {
+async function occResults(occXHR, url, taxonName) {
     var jsonRes = JSON.parse(occXHR.response);
-    var totCnt = jsonRes.count; 
-    var cmTotal = []; cmTotal[taxonObj.name] = jsonRes.count;
+    var totCnt = jsonRes.count; cmTotal[taxonName] = jsonRes.count;
     var limit = jsonRes.limit;
     var offset = jsonRes.offset;
     var netCnt = offset + limit;
@@ -793,10 +800,6 @@ if (document.getElementById("gbifStandalone")) {
           abortDataLoad();
         });
 
-        /*
-        Searching GBIF occurrences by vernacularName is not trivial like it is for scientific_name or taxon_key.
-        This feature is not enabled in the standalone lookup map.
-        */
         document.getElementById("sciName").addEventListener("click", function() {
           nameType = 0;
           console.log(`nameType`, nameType);
@@ -869,15 +872,17 @@ if (document.getElementById("gbifLoadOnOpen")) {
           console.log('species object:', speciesObj)
         } catch(error) {
           console.log('ERROR parsing http arugment', speciesStr, 'as JSON:', error);
-          alert('Please pass an object literal like [map-page-url]?species={"Turdus migratorius":"#800000","Quercus alba":"#3336FF","taxaBreakout":"true"}');
+          alert('Please pass species as object literal like [map-page-url]?species={"Turdus migratorius":"#800000"}');
         }
 
         initGbifStandalone();
         valMap.options.minZoom = 8;
         valMap.options.maxZoom = 17;
+        //initGbifOccCanvas();
+        //addGbifOccByTaxon('Bombus borealis');
         if (!boundaryLayerControl) {addBoundaries();}
         if (typeof speciesObj != "object") {
-            alert('Please pass an object literal like [map-page-url]?species={"Turdus migratorius":"#800000","Quercus alba":"#3336FF","taxaBreakout":"true"}');
+            alert('Please pass an object literal like [map-page-url]?species={"Turdus migratorius":"#800000"}');
         } else {
             getSpeciesListData(speciesObj);
         }
@@ -919,27 +924,20 @@ function getSpeciesListData(argSpecies = false) {
 
     //allow an object-value of 'breakout' to set that behavior. use it and delete it.
     if (typeof argSpecies.taxaBreakout != 'undefined') {
-      taxaBreakout = argSpecies.taxaBreakout; //handle a truthy value
+      taxaBreakout = argSpecies.taxaBreakout;
       delete argSpecies.taxaBreakout;
     }
 
-    console.log('getSpeciesListData | argSpecies', argSpecies);
-
     Object.keys(argSpecies).forEach(async function(taxonName) {
         taxonName = taxonName.trim();
-        var taxonColor = argSpecies[taxonName];
-        var taxonKey = parseInt(taxonName);
-        console.log(`getSpeciesListData::argSpecies.forEach | taxonName: ${taxonName} | taxonKey: ${taxonKey}`);
-        /*
         cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
         cmCount[taxonName] = 0;
-        cmTotal[taxonName] = 0;
         cgColor[taxonName] = argSpecies[taxonName]; //define circleMarker color for each species mapped
-        */
+        cmTotal[taxonName] = 0;
         console.log(`getSpeciesListData: Add species group ${taxonName} with color ${argSpecies[taxonName]}`);
-        await addGbifOccByTaxon(taxonName, taxonKey, taxonColor);
-        //var idTaxonName = taxonName.split(' ').join('_');
-        //speciesLayerControl.addOverlay(cmGroup[taxonName], `<span id="${idTaxonName}">${taxonName}</span>`);
+        await addGbifOccByTaxon(taxonName);
+        var idTaxonName = taxonName.split(' ').join('_');
+        speciesLayerControl.addOverlay(cmGroup[taxonName], `<span id="${idTaxonName}">${taxonName}</span>`);
         i++;
     });
 }
