@@ -2,7 +2,7 @@
 - Show VT priority blocks on a map of VT
 - Load a json array from GBIF Occurrence API and populate the map with point occurrence data
 */
-import { occData, getOccsByFilters, getOccsFromFile } from './fetchGbifOccs.js';
+import { occData, getOccsByFilters, getOccsByDatasetAndWKT, getOccsFromFile, icons } from './fetchGbifOccs.js';
 
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
 var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
@@ -18,6 +18,7 @@ var cmRadius = zoomLevel/2;
 var valMap = {};
 var basemapLayerControl = false;
 var boundaryLayerControl = false;
+var occurrenceLayerControl = false;
 var groupLayerControl = false;
 var sliderControl = false;
 var xhrRecsPerPage = 1000; //the number of records to load per ajax request.  more is faster.
@@ -28,6 +29,7 @@ var countyLayer = false;
 var townLayer = false;
 var bioPhysicalLayer = false;
 var geoGroup = false; //geoJson boundary group for ZIndex management
+var occGroup = false; //geoJson occurrence group
 var testHarness = false;
 var taxaBreakout = 0; //flag to break sub-taxa into separate layers with counts.
 var showAccepted = 0; //flag to show taxa by acceptedScientificName instead of scientificName
@@ -111,8 +113,8 @@ function addMap() {
 
     basemapLayerControl.setPosition("bottomright");
 
-    valMap.on("zoomend", e => onZoomEnd(e));
-    valMap.on("overlayadd", e => MapOverlayAdd(e));
+    //valMap.on("zoomend", e => onZoomEnd(e));
+    //valMap.on("overlayadd", e => MapOverlayAdd(e));
 }
 
 /*
@@ -133,17 +135,12 @@ function MapOverlayAdd(e) {
 function onZoomEnd(e) {
   zoomLevel = valMap.getZoom();
   zoomCenter = valMap.getCenter();
-  SetEachPointRadius();
+  //SetEachPointRadius();
 }
 
 /*
-  Add boundaries to map and control. Converted from KML to geoJSON
-
-  https://github.com/mapbox/leaflet-omnivore (no longer used)
-
-  https://github.com/mapbox/togeojson
-  - togeojson file.kml > file.geojson
- */
+  Add boundaries to map with their own control.
+*/
 async function addBoundaries(layerPath=false, layerName='New', layerId=9) {
 
     if (boundaryLayerControl === false) {
@@ -165,13 +162,63 @@ async function addBoundaries(layerPath=false, layerName='New', layerId=9) {
     }
   }
 
-function addGeoJsonLayer(file="test.geojson", layerName="Test", layerId = 0, layerControl=null, layerGroup=null, addToMap=false) {
+/*
+  Add geoJson occurrences to map with their own layer control
+*/
+async function addGeoJsonOccurrences(dataset='test', layerId=0) {
+
+  if (occurrenceLayerControl === false) {
+    console.log('Adding occurrenceLayerControl to map.')
+    occurrenceLayerControl = L.control.layers().addTo(valMap);
+  } else {
+      console.log('occurrenceLayerControl already added.')
+  }
+  occurrenceLayerControl.setPosition("bottomright");
+
+  occGroup = new L.FeatureGroup();
+  
+  var geojsonMarkerOptions = {
+    radius: 5,
+    fillColor: occData[dataset].color,
+    color: 'Black',
+    weight: 1,
+    opacity: 1,
+    fillOpacity: 0.5
+  };
+  
+  console.log('addGeoJsonOccurences adding', dataset, occData[dataset].geoJson);
+
+  loadJSON(`geojson/${occData[dataset].geoJson}`, async (data) => {
+    var layer = await L.geoJSON(data, {
+      pointToLayer: function (feature, latlng) {
+          return L.circleMarker(latlng, geojsonMarkerOptions);
+      },
+      onEachFeature: (feature, layer) => {
+        layer.on('click', async function (event) {
+          var popup = L.popup({
+            maxHeight: 200,
+            keepInView: true
+            })
+            .setContent(occurrencePopupInfo(feature.properties, occData[dataset].description))
+            .setLatLng(L.latLng(feature.properties.decimalLatitude, feature.properties.decimalLongitude))
+            .openOn(valMap);
+          })
+      },
+      name: occData[dataset].description,
+      id: layerId
+    }).addTo(valMap);
+    occurrenceLayerControl.addOverlay(layer, occData[dataset].description);
+    occGroup.addLayer(layer);
+    });
+}
+
+function addGeoJsonLayer(file="test.geojson", layerName="Test", layerId = 0, layerControl=null, layerGroup=null, addToMap=false, featrFunc=onEachFeature, styleFunc=geoBorderStyle) {
   var layer = null;
   return new Promise(async (resolve, reject) => {
     loadJSON(file, (data) => {
       layer = L.geoJSON(data, {
-          onEachFeature: onEachFeature,
-          style: onStyle,
+          onEachFeature: featrFunc,
+          style: styleFunc,
           name: layerName, //IMPORTANT: this used to compare layers at ZIndex time
           id: layerId
       });
@@ -266,18 +313,42 @@ function getIntersectingFeatures(e) {
   return html;
 }
 
+
 function onEachFeature(feature, layer) {
     layer.on('mousemove', function (event) {
       //console.log('mousemove', event);
     });
-    layer.on('click', function (event) {
+    layer.on('click', async function (event) {
         //console.log('click | event', event, '| layer', layer);
-        valMap.fitBounds(layer.getBounds()); // event.target._map.fitBounds(layer.getBounds());
-        console.log(feature.properties);
-        //clickHandler(event, layer);
-    });
+        //console.log('onEachFeature::layer.onClick | layer.getBounds:', layer.getBounds());
+        //console.log('onEachFeature::layer.onClick | feature.properties:', feature.properties);
+        //console.log('onEachFeature::layer.onClick | feature.geometry:', feature.geometry);
+        valMap.fitBounds(layer.getBounds());
+        var pops;
+        var name = feature.properties.BLOCKNAME;
+        var link = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
+        if (feature.properties.BLOCK_TYPE=='PRIORITY') {
+          pops = `<b><u>BUTTERFLY ATLAS PRIORITY BLOCK</u></b></br>`;
+        } else {
+          pops = `<b><u>BUTTERFLY ATLAS SURVEY BLOCK</u></b></br>`;
+        }
+        let type = feature.geometry.type;
+        let cdts = feature.geometry.coordinates[0][0];
+        let gWkt = 'POLYGON((';
+        console.log('feature.geometry.coordinates[0][0]', cdts)
+        for (var i=0; i<cdts.length; i++) {
+          console.log(`feat.geom.cdts[0][0][${i}]`, cdts[i]);
+          gWkt += `${cdts[i][0]} ${cdts[i][1]},`;
+        }
+        gWkt = gWkt.slice(0,-1) + '))';
+        console.log('WKT Geometry:', gWkt);
+        pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
+        pops += `<a target="_blank" href="https://docs.google.com/forms/d/e/1FAIpQLSegdid40-VdB_xtGvHt-WIEWR_TapHnbaxj-LJWObcWrS5ovg/viewform?usp=pp_url&entry.1143709545=${link}">Signup for ${name}</a></br>`;
+        pops += `<a target="_blank" href="vba_species_list.html?block=${name}&dataset=vba1&geometry=${gWkt}">Species list for ${name}</a></br>`;
+        if (pops) {layer.bindPopup(pops).openPopup();}
+        });
     layer.on('contextmenu', function (event) {
-        //console.log('CONTEXT-MENU | event', event, '| layer', layer);
+        console.log('CONTEXT-MENU | event', event, '| layer', layer);
         //event.target._map.fitBounds(layer.getBounds());
         //var html = getIntersectingFeatures(event);
         /*
@@ -319,35 +390,18 @@ function onEachFeature(feature, layer) {
             }
             pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
             pops += `<a target="_blank" href="https://docs.google.com/forms/d/e/1FAIpQLSegdid40-VdB_xtGvHt-WIEWR_TapHnbaxj-LJWObcWrS5ovg/viewform?usp=pp_url&entry.1143709545=${link}">Signup for ${name}</a>`;
-            //pops += `<a target="_blank" href="https://val.vtecostudies.org/projects/butterfly-atlas-2/signup?surveyblock=${link}">Signup for ${name}</a>`
           }
         }
-        if (tips) {layer.bindTooltip(tips);}
-        if (pops) {layer.bindPopup(pops);}
+        //if (tips) {layer.bindTooltip(tips);}
+        //if (pops) {layer.bindPopup(pops);}
     }
   } //end Butterfly Atlas Survey Blocks code
-  else { //handle all other layers' toolTips and popups
-      if (feature.properties) {
-          var obj = feature.properties;
-          var tips = '';
-          var pops = '';
-          for (var key in obj) { //iterate over feature properties
-            switch(key.substr(key.length - 4).toLowerCase()) { //last 4 characters of property
-              case 'name':
-                tips = `${obj[key]}<br>` + tips;
-                break;
-            }
-          }
-        if (tips) {layer.bindTooltip(tips);}
-        if (pops) {layer.bindPopup(pops);}
-      }
-    }
 }
 
 /*
   Callback function to set style of added geoJson overlays on the Boundary Layer Control
 */
-function onStyle(feature) {
+function geoBorderStyle(feature) {
     if (feature.properties.BLOCK_TYPE) {
       switch(feature.properties.BLOCK_TYPE) {
         case 'PRIORITY1':
@@ -373,28 +427,6 @@ function onStyle(feature) {
     }
 }
 
-/*
- * Clear any markers from the map
- */
-function initGbifOccCanvas() {
-    //console.log(`initGbifOccCanvas()`);
-    cmCount['all'] = 0;
-    //remove all circleMarkers from each group by clearing the layer
-    Object.keys(cmGroup).forEach(function(key) {
-        console.log(`Clear layer '${key}'`);
-        cmGroup[key].clearLayers();
-        console.log(`Remove control layer for '${key}'`);
-        if (groupLayerControl) groupLayerControl.removeLayer(cmGroup[key]);
-        delete cmGroup[key];
-        delete cmCount[key];
-        delete cmTotal[key];
-        delete cgColor[key];
-    });
-    console.log(`Remove species layer control from map`);
-    if (groupLayerControl) {valMap.removeControl(groupLayerControl);}
-    groupLayerControl = false;
-}
-
 function abortDataLoad() {
   console.log('abortDataLoad request received.');
   abortData = true;
@@ -405,7 +437,7 @@ function abortDataLoad() {
 
     taxaBreakout = 0;
 */
-async function addToMap(occJsonArr, groupField='datasetKey', groupColor='Red') {
+async function addOccsToMap(occJsonArr, groupField='datasetKey', groupIcon, groupColor='Red') {
   let sciName;
   let canName;
   cmTotal[groupField] = 0;
@@ -441,16 +473,23 @@ async function addToMap(occJsonArr, groupField='datasetKey', groupColor='Red') {
       }).setContent(occurrencePopupInfo(occJson, cmCount[grpName]));
 
       var marker = L.circleMarker(llLoc, {
-          fillColor: cgColor[sciName] ? cgColor[grpName] : groupColor, //interior color
+          fillColor: cgColor[grpName] ? cgColor[grpName] : groupColor, //interior color
           fillOpacity: 0.5, //values from 0 to 1
           color: "black", //border color
           weight: 1, //border thickness
           radius: cmRadius,
           index: cmCount[grpName],
           occurrence: occJson.scientificName, //occJson.species,
-          time: getDateYYYYMMDD(occJson.eventDate)
+          time: getDateYYYYMMDD(occJson.eventDate),
       }).bindPopup(popup);
-
+/*
+      var marker = L.marker(llLoc, {
+        icon: groupIcon ? groupIcon : icons.square,
+        index: cmCount[grpName],
+        occurrence: occJson.scientificName,
+        time: getDateYYYYMMDD(occJson.eventDate)
+      }).bindPopup(popup);
+*/
       //marker.bringToFront(); //not necessary, currently. can't hurt though.
       //marker.addTo(valMap); //not necessary - by adding layerGroup to map, then marker to layerGroup, that does it.
 
@@ -528,6 +567,8 @@ function occurrencePopupInfo(occRecord, index) {
 
     if (testHarness) {info += `Map Index: ${index}<br/>`;}
 
+    console.log(occRecord, index);
+
     Object.keys(occRecord).forEach(function(key) {
         switch(key) {
             case 'raw_institutionCode':
@@ -561,7 +602,8 @@ function occurrencePopupInfo(occRecord, index) {
                 break;
             case 'eventDate':
                 var msecs = occRecord[key]; //epoch date in milliseconds at time 00:00
-                info += `Event Date: ${getDateMMMMDoYYYY(msecs)}<br/>`;
+                //info += `Event Date: ${getDateMMMMDoYYYY(msecs)}<br/>`; //this for json occurrences (from eg. GBIF API)
+                info += `Event Date: ${occRecord[key]}<br/>`; //this for geoJson occurrences
                 break;
             case 'datasetName':
                 info += `Dataset Name: ${occRecord[key]}<br/>`;
@@ -577,12 +619,17 @@ function occurrencePopupInfo(occRecord, index) {
 //iterate through all plotted pools in each featureGroup and alter each radius
 function SetEachPointRadius(radius = cmRadius) {
   cmRadius = Math.floor(zoomLevel/2);
+
+/*
   Object.keys(cmGroup).forEach((name) => {
     cmGroup[name].eachLayer((cmLayer) => {
-      cmLayer.setRadius(radius);
-      cmLayer.bringToFront(); //this works, but only when this function is called
+      if (cmLayer instanceof L.circleMarker) {
+        cmLayer.setRadius(radius);
+        cmLayer.bringToFront(); //this works, but only when this function is called
+      }
     });
   });
+*/
 }
 
 //standalone module usage
@@ -612,7 +659,8 @@ if (document.getElementById("valSurveyBlocksVBA")) {
     groupLayerControl = L.control.layers().addTo(valMap);
     groupLayerControl.setPosition("bottomright");
   }
-  //getFileData('vtb1');
+  //getJsonFileData('test');
+  //showUrlInfo('test');
 }
 
 async function getLiveData(dataset='vba2') {
@@ -622,14 +670,14 @@ async function getLiveData(dataset='vba2') {
   let max = 1000;
   do {
     page = await getOccsByFilters(off, lim);
-    addToMap(page.results);
+    addOccsToMap(page.results, occData[dataset].description, occData[dataset].icon, occData[dataset].color);
     off += lim;
   } while (!page.endOfRecords && !abortData && off<max);
 }
 
-async function getFileData(dataset='vba1') {
+async function getJsonFileData(dataset='vba1') {
   let occF = await getOccsFromFile(dataset);
-  addToMap(occF.rows, occData[dataset].description, occData[dataset].color);
+  addOccsToMap(occF.rows, occData[dataset].description, occData[dataset].icon, occData[dataset].color);
 }
 
 function showUrlInfo(dataset='vba1') {
@@ -674,22 +722,33 @@ function addMapCallbacks() {
 if (document.getElementById("getVtb1")) {
   document.getElementById("getVtb1").addEventListener("click", async () => {
     abortData = false;
-    getFileData('vtb1');
-    showUrlInfo('vtb1');
+    //getJsonFileData('vtb1');
+    //showUrlInfo('vtb1');
+    addGeoJsonOccurrences('vtb1');
   });
 }
 if (document.getElementById("getVtb2")) {
   document.getElementById("getVtb2").addEventListener("click", async () => {
     abortData = false;
-    getFileData('vtb2');
-    showUrlInfo('vtb2');
+    //getJsonFileData('vtb2');
+    //showUrlInfo('vtb2');
+    addGeoJsonOccurrences('vtb2');
   });
 }
 if (document.getElementById("getVba1")) {
   document.getElementById("getVba1").addEventListener("click", async () => {
     abortData = false;
-    getFileData('vba1');
-    showUrlInfo('vba1');
+    //getJsonFileData('vba1');
+    //showUrlInfo('vba1');
+    addGeoJsonOccurrences('vba1');
+  });
+}
+if (document.getElementById("getTest")) {
+  document.getElementById("getTest").addEventListener("click", async () => {
+    abortData = false;
+    //getJsonFileData('test');
+    //showUrlInfo('test');
+    addGeoJsonOccurrences('test');
   });
 }
 // Add a listener to handle the 'Clear Data' button click
