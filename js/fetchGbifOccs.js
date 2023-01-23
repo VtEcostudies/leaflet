@@ -17,19 +17,23 @@ export const occData = {
 export async function getOccsByDatasetAndWKT(dataset='vba1', geoWKT='') {
     return await getOccsByFilters(0, 300, datasetKeys[dataset], geoWKT);
 }
+export async function getOccsByTaxonKeysAndWKT(taxonKeys=false, geoWKT=false) {
+    return await getOccsByFilters(0, 300, false, geoWKT, false, taxonKeys);
+}
 /*
 https://api.gbif.org/v1/occurrence/search
     ?datasetKey=0901cecf-55f1-447e-8537-1f7b63a865a0
     &geometry=POLYGON((-73.0%2044.0,%20-72.75%2044.0,%20-72.75%2044.2,%20-73.0%2044.2,%20-73.0%2044.0))
 */
-export async function getOccsByFilters(offset=0, limit=300, datasetKey=datasetKeys.vba1, geometryWKT, gadmGid) {
+export async function getOccsByFilters(offset=0, limit=300, datasetKey=false, geometryWKT=false, gadmGid=false, taxonKeys=false) {
 let reqHost = gbifApi;
-let reqRoute = "/occurrence/search";
-let reqData = datasetKey ? `?datasetKey=${datasetKey}` : '';
+let reqRoute = "/occurrence/search?advanced=1";
+let reqData = datasetKey ? `&datasetKey=${datasetKey}` : '';
 let reqGeom = geometryWKT ? `&geometry=${geometryWKT}` : '';
 let reqGadm = gadmGid ? `&gadmGid=${gadmGid}` : '';
+let reqTaxa = taxonKeys ? `&${taxonKeys}` : '';
 let reqLimits = `&offset=${offset}&limit=${limit}`;
-let url = reqHost+reqRoute+reqData+reqGeom+reqGadm+reqLimits;
+let url = reqHost+reqRoute+reqData+reqGeom+reqGadm+reqTaxa+reqLimits;
 let enc = encodeURI(url);
 
 console.log(`getOccsByFilters(${offset}, ${limit}, ${datasetKey}, ${geometryWKT}, ${gadmGid}) QUERY:`, enc);

@@ -1,9 +1,13 @@
-import { occData, getOccsByFilters, getOccsByDatasetAndWKT, getOccsFromFile } from './fetchGbifOccs.js';
+import { getOccsByFilters } from './fetchGbifOccs.js';
 
 const objUrlParams = new URLSearchParams(window.location.search);
 const geometry = objUrlParams.get('geometry');
 const dataset = objUrlParams.get('dataset');
 const block = objUrlParams.get('block');
+const taxonKeyA = objUrlParams.getAll('taxonKey');
+const butterflyKeys = 'taxon_key=6953&taxon_key=5473&taxon_key=7017&taxon_key=9417&taxon_key=5481&taxon_key=1933999';
+console.log('Query Param(s) taxonKeys:', taxonKeyA);
+
 const other = ''; var objOther = {};
 objUrlParams.forEach((val, key) => {
     if ('geometry'!=key && 'block'!=key && 'dataset'!=key) {
@@ -11,6 +15,8 @@ objUrlParams.forEach((val, key) => {
       objOther[key] = val;
     }
   });
+
+const eleLbl = document.getElementById("speciesListLabel");
 const eleTbl = document.getElementById("speciesListTable");
 
 /*
@@ -23,60 +29,79 @@ coordinates: Array (1)
     3: Array [ -72.6245558831222, 44.2917251487992 ]
     4: Array [ -72.56200954781823, 44.291742756710484 ]
 */
-async function getBlockSpeciesList(block='block_name', dataset='vba1', gWkt='POLYGON(())') {
+async function getBlockSpeciesList(block='block_name', dataset=false, gWkt=false, tKeys=false) {
 
-    let occs = await getOccsByDatasetAndWKT(dataset, gWkt);
+    let occs = await getOccsByFilters(0,300,dataset,gWkt,false,tKeys);
     //console.log('getBlockSpeciesList', occs);
-    let hedSpcs = dataset + ' Species in ' + block + ':';
-    let arrSpcs = [];
-    let txtSpcs = dataset + ' in ' + block + ':\r\n';
+    let hedSpcs = 'Species List for ' + block + (dataset ? ` and dataset ${dataset}` : '')
+    let objSpcs = {};
     let arrOccs = occs.results;
-    let j=1;
     for (var i=0; i<arrOccs.length; i++) {
-      if (!arrSpcs.includes(arrOccs[i].scientificName)) {
-        arrSpcs.push(arrOccs[i].scientificName);
-        txtSpcs += j++ + '. ' + arrOccs[i].taxonRank + ': ' + arrOccs[i].scientificName + '\r\n';
+        let sciName = arrOccs[i].scientificName;
+        if (objSpcs[sciName]) { //check to replace name with more recent observation
+            if (arrOccs[i].eventDate > objSpcs[sciName].eventDate) {
+                console.log('getOccsByFilters FOUND MORE RECENT OBSERVATION for', sciName, arrOccs[i].eventDate, '>',objSpcs[sciName].eventDate);
+                objSpcs[sciName] = {
+                    'scientificName': arrOccs[i].scientificName,
+                    'vernacularName': arrOccs[i].vernacularName,
+                    'eventDate':  arrOccs[i].eventDate
+                }
+            }
+      } else { //add new name
+        objSpcs[sciName] = {
+            'scientificName': arrOccs[i].scientificName,
+            'vernacularName': arrOccs[i].vernacularName,
+            'eventDate':  arrOccs[i].eventDate
+        }
       }
     }
-    txtSpcs = arrSpcs.length + ' taxa for ' + txtSpcs;
-    return {'head': hedSpcs, 'text': txtSpcs, 'array': arrSpcs};
+    return {'head': hedSpcs, cols:['Scientific Name','Vernacular Name','Last Observed'], 'array': objSpcs};
   }
 
-function addTableHead(headInfo='Header Info', headCols=['Count', 'Scientific Name']) {
+//put one row in the header for column names
+function addTableHead(headCols=['Scientific Name','Vernacular Name','Last Observed']) {
     let objHed = eleTbl.createTHead();
     let hedRow = objHed.insertRow(0);
     let colObj = hedRow.insertCell(0);
-    colObj.innerHTML = headInfo;
-    hedRow = objHed.insertRow(1);
-    headCols.forEach(async (title, i) => {
+    for (var i=0; i<headCols.length; i++) {
         colObj = hedRow.insertCell(i);
-        colObj.innerHTML = title;
-    })
+        colObj.innerHTML = headCols[i];
+    }
 }
   
 //Create table row for each array element, then fill row of cells
-async function addTaxaFromArr(sArr) {
-    console.log('addTaxaFromArr', sArr);
-    sArr.forEach(async (objSpc, rowIdx) => {
-        console.log(objSpc, rowIdx)
-      let objRow = eleTbl.insertRow(rowIdx);
-      await fillRow(objSpc, objRow, rowIdx);
-    })
+async function addTaxaFromArr(objArr) {
+    //console.log('addTaxaFromArr', objArr);
+    let rowIdx=0;
+    for (const [spcKey, objSpc] of Object.entries(objArr)) {
+        //console.log(objSpc, rowIdx)
+        let objRow = eleTbl.insertRow(rowIdx);
+        await fillRow(objSpc, objRow, rowIdx++);
+    }
   }
 
 //Create cells for each object element
-async function fillRow(objSpc, objRow, rowIdx){
-    let colObj = objRow.insertCell(0);
-    colObj.innerHTML += rowIdx+1;
-    colObj = objRow.insertCell(1);
-    colObj.innerHTML = objSpc;
+async function fillRow(objSpc, objRow, rowIdx) {
+    let colIdx = 0;
+    //let colObj = objRow.insertCell(colIdx++);
+    //colObj.innerHTML += rowIdx+1;
+    for (const [key, val] of Object.entries(objSpc)) {
+        let colObj = objRow.insertCell(colIdx++);
+        colObj.innerHTML = val ? val : '';
+    }
 }
 
-if (block && dataset && geometry) {
-    let spcs = await getBlockSpeciesList(block, dataset, geometry);
-    //alert(spcs.head + '\n' + spcs.text);
+function setLabelText(block, dataset=false, taxonKeys=false, count=0) {
+    eleLbl.innerText = `Species List for Survey Block '${block}' and ${dataset ? 'dataset ' + dataset : 'all history'}: ${count} taxa`;
+}
+
+if (block && geometry) {
+    let taxonKeys;
+    if (!dataset && (!taxonKeyA.length)) {taxonKeys = butterflyKeys}
+    let spcs = await getBlockSpeciesList(block, dataset, geometry, taxonKeys);
     addTaxaFromArr(spcs.array);
-    addTableHead(spcs.head);
+    addTableHead(spcs.cols);
+    setLabelText(block, dataset, taxonKeys, Object.keys(spcs.array).length)
 } else {
-    alert(`Must call with query parameters: block, dataset, geometry.`)
+    alert(`Must call with at least query parameters: block= & geometry=. Alternatively pass one or more taxon_key=1234.`)
 }

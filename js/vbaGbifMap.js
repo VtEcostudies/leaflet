@@ -344,7 +344,7 @@ function onEachFeature(feature, layer) {
         console.log('WKT Geometry:', gWkt);
         pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
         pops += `<a target="_blank" href="https://docs.google.com/forms/d/e/1FAIpQLSegdid40-VdB_xtGvHt-WIEWR_TapHnbaxj-LJWObcWrS5ovg/viewform?usp=pp_url&entry.1143709545=${link}">Signup for ${name}</a></br>`;
-        pops += `<a target="_blank" href="vba_species_list.html?block=${name}&dataset=vba1&geometry=${gWkt}">Species list for ${name}</a></br>`;
+        pops += `<a target="_blank" href="vba_species_list.html?block=${name}&geometry=${gWkt}">Species list for ${name}</a></br>`;
         if (pops) {layer.bindPopup(pops).openPopup();}
         });
     layer.on('contextmenu', function (event) {
@@ -357,45 +357,6 @@ function onEachFeature(feature, layer) {
         });
         */
     });
-    if (9 == layer.options.id)  { //Butterfly Atlas Survey Blocks
-      //https://docs.google.com/forms/d/e/1FAIpQLSegdid40-VdB_xtGvHt-WIEWR_TapHnbaxj-LJWObcWrS5ovg/viewform?usp=pp_url&entry.1143709545=SURVEYBLOCK
-      if (feature.properties) {
-        var obj = feature.properties;
-        var tips = '';
-        var pops = '';
-        for (var key in obj) {
-          switch(key.substr(key.length - 4).toLowerCase()) { //last 4 characters of property
-            case 'name':
-              tips += `${obj[key]}<br>`;
-              break;
-            case 'type':
-              if (obj[key] == 'PRIORITY') {
-                tips = '<b><u>Butterfly Atlas Priority Block</u></b><br>' + tips;
-              } else if (obj[key] == 'NONPRIOR') {
-                tips = 'Non-priority Block<br>' + tips;
-              } else {
-                tips = `${obj[key]}<br>` + tips;
-              }
-              break;
-          }
-          if (feature.properties.BLOCKNAME)
-            //&& (feature.properties.BLOCK_TYPE=='PRIORITY' || feature.properties.BLOCK_TYPE=='PRIORITY1'))
-          {
-            var name = feature.properties.BLOCKNAME;
-            var link = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
-            if (feature.properties.BLOCK_TYPE=='PRIORITY') {
-              pops = `<b><u>BUTTERFLY ATLAS PRIORITY BLOCK</u></b></br>`;
-            } else {
-              pops = `<b><u>BUTTERFLY ATLAS SURVEY BLOCK</u></b></br>`;
-            }
-            pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
-            pops += `<a target="_blank" href="https://docs.google.com/forms/d/e/1FAIpQLSegdid40-VdB_xtGvHt-WIEWR_TapHnbaxj-LJWObcWrS5ovg/viewform?usp=pp_url&entry.1143709545=${link}">Signup for ${name}</a>`;
-          }
-        }
-        //if (tips) {layer.bindTooltip(tips);}
-        //if (pops) {layer.bindPopup(pops);}
-    }
-  } //end Butterfly Atlas Survey Blocks code
 }
 
 /*
@@ -591,9 +552,12 @@ function occurrencePopupInfo(occRecord, index) {
             case 'scientificName':
                 info += `Scientific Name: ${occRecord[key]}<br/>`;
                 break;
+            case 'vernacularName':
+              info += `Common Name: ${occRecord[key]}<br/>`;
+              break;
             case 'collector':
-                info += `Collector: ${occRecord[key]}<br/>`;
-                break;
+              info += `Collector: ${occRecord[key]}<br/>`;
+              break;
             case 'recordedBy':
                 info += `Recorded By: ${occRecord[key]}<br/>`;
                 break;
