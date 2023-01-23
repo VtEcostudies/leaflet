@@ -58,6 +58,20 @@ async function getBlockSpeciesList(block='block_name', dataset=false, gWkt=false
     return {'head': hedSpcs, cols:['Scientific Name','Vernacular Name','Last Observed'], 'array': objSpcs};
   }
 
+var waitRow; var waitObj;
+
+async function addTableWait() {
+    waitRow = eleTbl.insertRow(0);
+    waitObj = waitRow.insertCell(0);
+    waitObj.style = 'text-align: center;';
+    waitObj.innerHTML = `<i class="fa fa-spinner fa-spin" style="font-size:60px;"></i>`;
+}
+
+function delTableWait() {
+    waitObj.remove();
+    waitRow.remove();
+}
+  
 //put one row in the header for column names
 function addTableHead(headCols=['Scientific Name','Vernacular Name','Last Observed']) {
     let objHed = eleTbl.createTHead();
@@ -92,16 +106,18 @@ async function fillRow(objSpc, objRow, rowIdx) {
 }
 
 function setLabelText(block, dataset=false, taxonKeys=false, count=0) {
-    eleLbl.innerText = `Species List for Survey Block '${block}' and ${dataset ? 'dataset ' + dataset : 'all history'}: ${count} taxa`;
+    eleLbl.innerText = `Species List for Survey Block '${block}' and ${dataset ? 'dataset ' + dataset : ''}: ${count} taxa`;
 }
 
 if (block && geometry) {
     let taxonKeys;
+    addTableWait();
     if (!dataset && (!taxonKeyA.length)) {taxonKeys = butterflyKeys}
     let spcs = await getBlockSpeciesList(block, dataset, geometry, taxonKeys);
     addTaxaFromArr(spcs.array);
     addTableHead(spcs.cols);
-    setLabelText(block, dataset, taxonKeys, Object.keys(spcs.array).length)
+    setLabelText(block, dataset, taxonKeys, Object.keys(spcs.array).length);
+    delTableWait();
 } else {
     alert(`Must call with at least query parameters: block= & geometry=. Alternatively pass one or more taxon_key=1234.`)
 }

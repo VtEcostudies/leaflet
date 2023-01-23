@@ -8,7 +8,7 @@ export var icons = {
     triangle: L.divIcon({className: 'triangle'})
 };
 export const occData = {
-    'vtb1':{geoJson:'vtb1_occs_1000-2002.geojson','file':'vtb1_occs_1000-2002.json','description':'Obs before 2002','icon':icons.round,'color':'Red'},
+    'vtb1':{geoJson:'vtb1_occs_1000-2002.geojson','file':'vtb1_occs_1000-2002.json','description':'Obs 1000-2002','icon':icons.round,'color':'Red'},
     'vtb2':{geoJson:'vtb2_occs_2008-2022.geojson','file':'vtb2_occs_2008-2022.json','description':'Obs 2008-2022','icon':icons.square,'color':'Blue'},
     'vba1':{geoJson:'vba1_occs_2002-2007.geojson','file':'vba1_occs_2002-2007.json','description':'1st Atlas 2002-2007','icon':icons.triangle,'color':'Cyan'},
     'vba2':{geoJson:'vba2_occs_2023-2028.geojson','file':'vba2_occs_2023-2028.json','description':'2nd Atlas 2023-2028','icon':icons.diamond,'color':'Green'},

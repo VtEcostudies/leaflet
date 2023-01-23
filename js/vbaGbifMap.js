@@ -113,8 +113,8 @@ function addMap() {
 
     basemapLayerControl.setPosition("bottomright");
 
-    //valMap.on("zoomend", e => onZoomEnd(e));
-    //valMap.on("overlayadd", e => MapOverlayAdd(e));
+    valMap.on("zoomend", e => onZoomEnd(e));
+    valMap.on("overlayadd", e => MapOverlayAdd(e));
 }
 
 /*
@@ -141,7 +141,7 @@ function onZoomEnd(e) {
 /*
   Add boundaries to map with their own control.
 */
-async function addBoundaries(layerPath=false, layerName='New', layerId=9) {
+async function addBoundaries(layerPath=false, layerName=false, layerId=9) {
 
     if (boundaryLayerControl === false) {
         boundaryLayerControl = L.control.layers().addTo(valMap);
@@ -186,7 +186,7 @@ async function addGeoJsonOccurrences(dataset='test', layerId=0) {
     fillOpacity: 0.5
   };
   
-  console.log('addGeoJsonOccurences adding', dataset, occData[dataset].geoJson);
+  console.log('addGeoJsonOccurrences adding', dataset, occData[dataset].geoJson);
 
   loadJSON(`geojson/${occData[dataset].geoJson}`, async (data) => {
     var layer = await L.geoJSON(data, {
@@ -323,30 +323,32 @@ function onEachFeature(feature, layer) {
         //console.log('onEachFeature::layer.onClick | layer.getBounds:', layer.getBounds());
         //console.log('onEachFeature::layer.onClick | feature.properties:', feature.properties);
         //console.log('onEachFeature::layer.onClick | feature.geometry:', feature.geometry);
-        valMap.fitBounds(layer.getBounds());
-        var pops;
-        var name = feature.properties.BLOCKNAME;
-        var link = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
-        if (feature.properties.BLOCK_TYPE=='PRIORITY') {
-          pops = `<b><u>BUTTERFLY ATLAS PRIORITY BLOCK</u></b></br>`;
-        } else {
-          pops = `<b><u>BUTTERFLY ATLAS SURVEY BLOCK</u></b></br>`;
+        valMap.fitBounds(layer.getBounds()); //applies to all layers
+        if (9 == layer.options.id) { //VT Butterfly Atlas
+          var pops;
+          var name = feature.properties.BLOCKNAME;
+          var link = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
+          if (feature.properties.BLOCK_TYPE=='PRIORITY') {
+            pops = `<b><u>BUTTERFLY ATLAS PRIORITY BLOCK</u></b></br>`;
+          } else {
+            pops = `<b><u>BUTTERFLY ATLAS SURVEY BLOCK</u></b></br>`;
+          }
+          let type = feature.geometry.type;
+          let cdts = feature.geometry.coordinates[0][0];
+          let gWkt = 'POLYGON((';
+          console.log('feature.geometry.coordinates[0][0]', cdts)
+          for (var i=0; i<cdts.length; i++) {
+            console.log(`feat.geom.cdts[0][0][${i}]`, cdts[i]);
+            gWkt += `${cdts[i][0]} ${cdts[i][1]},`;
+          }
+          gWkt = gWkt.slice(0,-1) + '))';
+          console.log('WKT Geometry:', gWkt);
+          pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
+          pops += `<a target="_blank" href="https://docs.google.com/forms/d/e/1FAIpQLSegdid40-VdB_xtGvHt-WIEWR_TapHnbaxj-LJWObcWrS5ovg/viewform?usp=pp_url&entry.1143709545=${link}">Signup for ${name}</a></br>`;
+          pops += `<a target="_blank" href="vba_species_list.html?block=${name}&geometry=${gWkt}">Species list for ${name}</a></br>`;
+          if (pops) {layer.bindPopup(pops).openPopup();}
         }
-        let type = feature.geometry.type;
-        let cdts = feature.geometry.coordinates[0][0];
-        let gWkt = 'POLYGON((';
-        console.log('feature.geometry.coordinates[0][0]', cdts)
-        for (var i=0; i<cdts.length; i++) {
-          console.log(`feat.geom.cdts[0][0][${i}]`, cdts[i]);
-          gWkt += `${cdts[i][0]} ${cdts[i][1]},`;
-        }
-        gWkt = gWkt.slice(0,-1) + '))';
-        console.log('WKT Geometry:', gWkt);
-        pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get ${name} block map</a></br>`;
-        pops += `<a target="_blank" href="https://docs.google.com/forms/d/e/1FAIpQLSegdid40-VdB_xtGvHt-WIEWR_TapHnbaxj-LJWObcWrS5ovg/viewform?usp=pp_url&entry.1143709545=${link}">Signup for ${name}</a></br>`;
-        pops += `<a target="_blank" href="vba_species_list.html?block=${name}&geometry=${gWkt}">Species list for ${name}</a></br>`;
-        if (pops) {layer.bindPopup(pops).openPopup();}
-        });
+      });
     layer.on('contextmenu', function (event) {
         console.log('CONTEXT-MENU | event', event, '| layer', layer);
         //event.target._map.fitBounds(layer.getBounds());
@@ -597,32 +599,34 @@ function SetEachPointRadius(radius = cmRadius) {
 }
 
 //standalone module usage
-function initGbifStandalone(layerPath=false, layerName) {
+function initGbifStandalone(layerPath=false, layerName, layerId) {
     addMap();
     addMapCallbacks();
-    if (!boundaryLayerControl) {addBoundaries(layerPath, layerName);}
+    if (!boundaryLayerControl) {addBoundaries(layerPath, layerName, layerId);}
 }
 
 if (document.getElementById("valSurveyBlocksLady")) {
   let layerPath = 'geojson/lady_beetle_priority_blocks.geojson';
   let layerName = 'Survey Blocks - Lady Beetles';
-  initGbifStandalone(layerPath, layerName);
+  initGbifStandalone(layerPath, layerName, 7);
 }
 
 if (document.getElementById("valSurveyBlocksEAME")) {
   let layerPath = 'geojson/EAME_Priority_Blocks.geojson';
   let layerName = 'Survey Blocks - EAME';
-  initGbifStandalone(layerPath, layerName);
+  initGbifStandalone(layerPath, layerName, 8);
 }
 
 if (document.getElementById("valSurveyBlocksVBA")) {
   let layerPath = 'geojson/surveyblocksWGS84_orig.geojson';
   let layerName = 'Survey Blocks - VBA2';
-  initGbifStandalone(layerPath, layerName);
+  initGbifStandalone(layerPath, layerName, 9);
+  /*
   if (!groupLayerControl) {
     groupLayerControl = L.control.layers().addTo(valMap);
     groupLayerControl.setPosition("bottomright");
   }
+  */
   //getJsonFileData('test');
   //showUrlInfo('test');
 }
