@@ -103,8 +103,7 @@ html, body, #mapid, .row-fluid{
 
 #speciesListLabel {
   display: inline;
-  width: 100%;
-  text-align: center;
+  margin-left: 10px;
 }
 
 #gbifLink {
