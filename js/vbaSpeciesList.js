@@ -1,4 +1,6 @@
 import { getOccsByFilters } from './fetchGbifOccs.js';
+import { getWikiPage } from './wiki_page_data.js'
+import { parseCanonicalFromScientific } from './commonUtilities.js';
 
 const objUrlParams = new URLSearchParams(window.location.search);
 const geometry = objUrlParams.get('geometry');
@@ -38,24 +40,29 @@ async function getBlockSpeciesList(block='block_name', dataset=false, gWkt=false
     let arrOccs = occs.results;
     for (var i=0; i<arrOccs.length; i++) {
         let sciName = arrOccs[i].scientificName;
-        if (objSpcs[sciName]) { //check to replace name with more recent observation
-            if (arrOccs[i].eventDate > objSpcs[sciName].eventDate) {
-                console.log('getOccsByFilters FOUND MORE RECENT OBSERVATION for', sciName, arrOccs[i].eventDate, '>',objSpcs[sciName].eventDate);
-                objSpcs[sciName] = {
+        let canName = parseCanonicalFromScientific(arrOccs[i]);
+        if (objSpcs[canName]) { //check to replace name with more recent observation
+            if (arrOccs[i].eventDate > objSpcs[canName].eventDate) {
+                console.log('getOccsByFilters FOUND MORE RECENT OBSERVATION for', sciName, arrOccs[i].eventDate, '>',objSpcs[canName].eventDate);
+                objSpcs[canName] = {
                     'scientificName': arrOccs[i].scientificName,
+                    'taxonRank': arrOccs[i].taxonRank,
                     'vernacularName': arrOccs[i].vernacularName,
+                    'image': false,
                     'eventDate':  arrOccs[i].eventDate
                 }
             }
       } else { //add new name
-        objSpcs[sciName] = {
+        objSpcs[canName] = {
             'scientificName': arrOccs[i].scientificName,
+            'taxonRank': arrOccs[i].taxonRank,
             'vernacularName': arrOccs[i].vernacularName,
+            'image': false,
             'eventDate':  arrOccs[i].eventDate
         }
       }
     }
-    return {'head': hedSpcs, cols:['Scientific Name','Vernacular Name','Last Observed'], 'array': objSpcs};
+    return {'head': hedSpcs, cols:['Scientific Name','Taxon Rank','Common Name','Image','Last Observed'], 'array': objSpcs};
   }
 
 var waitRow; var waitObj;
@@ -73,7 +80,7 @@ function delTableWait() {
 }
   
 //put one row in the header for column names
-function addTableHead(headCols=['Scientific Name','Vernacular Name','Last Observed']) {
+function addTableHead(headCols=['Scientific Name','Taxon Rank','Common Name','Image','Last Observed']) {
     let objHed = eleTbl.createTHead();
     let hedRow = objHed.insertRow(0);
     let colObj = hedRow.insertCell(0);
@@ -90,23 +97,57 @@ async function addTaxaFromArr(objArr) {
     for (const [spcKey, objSpc] of Object.entries(objArr)) {
         //console.log(objSpc, rowIdx)
         let objRow = eleTbl.insertRow(rowIdx);
-        await fillRow(objSpc, objRow, rowIdx++);
+        await fillRow(spcKey, objSpc, objRow, rowIdx++);
     }
   }
 
 //Create cells for each object element
-async function fillRow(objSpc, objRow, rowIdx) {
+async function fillRow(spcKey, objSpc, objRow, rowIdx) {
     let colIdx = 0;
     //let colObj = objRow.insertCell(colIdx++);
     //colObj.innerHTML += rowIdx+1;
     for (const [key, val] of Object.entries(objSpc)) {
         let colObj = objRow.insertCell(colIdx++);
-        colObj.innerHTML = val ? val : '';
+        //console.log('key:', key);
+        switch(key) {
+            case 'image': case 'Image':
+                colObj.innerHTML = `<i class="fa fa-spinner fa-spin" style="font-size:18px"></i>`;
+                try {
+                  let wik = await getWikiPage(spcKey);
+                  colObj.innerHTML = '';
+                  if (wik.thumbnail) {
+                    let iconImg = document.createElement("img");
+                    iconImg.src = wik.thumbnail.source;
+                    iconImg.alt = spcKey;
+                    iconImg.className = "icon-image";
+                    iconImg.width = "30"; 
+                    iconImg.height = "30";
+                    let hrefImg = document.createElement("a");
+                    hrefImg.href = wik.originalimage.source;
+                    hrefImg.target = "_blank";
+                    colObj.appendChild(hrefImg);
+                    hrefImg.appendChild(iconImg);
+                  }
+                } catch(err) {
+                    colObj.innerHTML = '';
+                    console.log(`getWikiPage(${spcKey}) ERROR:`, err);
+                }
+                break;
+            case 'scientificName':
+                colObj.innerHTML = `<a title="Wikipedia: ${spcKey}" href="https://en.wikipedia.org/wiki/${spcKey}">${val}</a>`;
+                break;
+            case 'eventDate':
+                colObj.innerHTML = val ? moment(val).format('YYYY-MM-DD') : '';
+                break;
+            default:
+                colObj.innerHTML = val ? val : '';
+                break;
+        }
     }
 }
 
 function setLabelText(block, dataset=false, taxonKeys=false, count=0) {
-    eleLbl.innerText = `Species List for Survey Block '${block}' and ${dataset ? 'dataset ' + dataset : ''}: ${count} taxa`;
+    if (eleLbl) {eleLbl.innerText = `VT Butterfly Atlas Species List for Survey Block '${block}'${dataset ? ' and dataset ' + dataset : ''}: ${count} taxa`;}
 }
 
 if (block && geometry) {
@@ -119,5 +160,5 @@ if (block && geometry) {
     setLabelText(block, dataset, taxonKeys, Object.keys(spcs.array).length);
     delTableWait();
 } else {
-    alert(`Must call with at least query parameters: block= & geometry=. Alternatively pass one or more taxon_key=1234.`)
+    alert(`Must call with at least the query parameters 'block' and 'geometry'. Alternatively pass a dataset (like 'vba1') or one or more eg. 'taxon_key=1234'.`)
 }

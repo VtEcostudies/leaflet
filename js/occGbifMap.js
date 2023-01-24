@@ -8,8 +8,9 @@ Convert kml to geoJson:
   https://github.com/mapbox/togeojson
   - togeojson file.kml > file.geojson
 */
-import {getCanonicalName, getScientificName, getAllData} from "./gbifAutoComplete.js";
-import {colorsList, speciesList} from "./mapTheseSpecies.js";
+import { getCanonicalName, getScientificName, getAllData } from "./gbifAutoComplete.js";
+import { parseCanonicalFromScientific } from "./commonUtilities.js";
+import { colorsList, speciesList } from "./mapTheseSpecies.js";
 
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
 var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
@@ -645,28 +646,6 @@ async function updateMap(occJsonArr, taxonName) {
           document.getElementById(id).innerHTML = `${sciName} (${cmCount[sciName]}/${cmTotal[taxonName]})`;
       }
     });
-}
-
-
-function parseCanonicalFromScientific(occJson) {
-  var toks = occJson.scientificName.split(' ');
-  var name = null;
-  switch(occJson.taxonRank.toUpperCase()) {
-    case 'SUBSPECIES':
-    case 'VARIETY':
-    case 'FORM':
-      name = `${toks[0]} ${toks[1]} ${toks[2]}`;
-      break;
-    case 'SPECIES':
-      name = `${toks[0]} ${toks[1]}`;
-      name = occJson.species;
-      break;
-    case 'GENUS':
-    defuault:
-      name = `${toks[0]}`;
-      break;
-  }
-  return name;
 }
 
 /*
