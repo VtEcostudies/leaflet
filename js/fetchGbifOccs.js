@@ -1,3 +1,5 @@
+import { fetchJsonFile } from "./commonUtilities.js";
+
 let gbifApi = "https://api.gbif.org/v1";
 let datasetKeys = {vba1:"0901cecf-55f1-447e-8537-1f7b63a865a0", chkVba1:"73eb16f0-4b06-4347-8069-459bc2d96ddb"};
 let butterflies = "taxon_key=6953&taxon_key=5473&taxon_key=7017&taxon_key=9417&taxon_key=5481&taxon_key=1933999";
@@ -10,8 +12,8 @@ export var icons = {
 export const occData = {
     'vtb1':{geoJson:'vtb1_occs_1000-2002.geojson','file':'vtb1_occs_1000-2002.json','description':'Obs 1000-2002','icon':icons.round,'color':'Red'},
     'vtb2':{geoJson:'vtb2_occs_2008-2022.geojson','file':'vtb2_occs_2008-2022.json','description':'Obs 2008-2022','icon':icons.square,'color':'Blue'},
-    'vba1':{geoJson:'vba1_occs_2002-2007.geojson','file':'vba1_occs_2002-2007.json','description':'1st Atlas 2002-2007','icon':icons.triangle,'color':'Cyan'},
-    'vba2':{geoJson:'vba2_occs_2023-2028.geojson','file':'vba2_occs_2023-2028.json','description':'2nd Atlas 2023-2028','icon':icons.diamond,'color':'Green'},
+    'vba1':{geoJson:'vba1_occs_2002-2007.geojson','file':'vba1_occs_2002-2007.json','description':'Butterfly Atlas 1','icon':icons.triangle,'color':'Cyan'},
+    'vba2':{geoJson:'vba2_occs_2023-2028.geojson','file':'vba2_occs_2023-2028.json','description':'Butterfly Atlas 2','icon':icons.diamond,'color':'Green'},
     'test':{geoJson:'test.geojson','file':'test.json','description':'test dataset','icon':icons.square,'color':'Red'}
 };
 export async function getOccsByDatasetAndWKT(dataset='vba1', geoWKT='') {
@@ -53,19 +55,12 @@ console.log(`getOccsByFilters(${offset}, ${limit}, ${datasetKey}, ${geometryWKT}
 }
 
 export async function getOccsFromFile(dataset='vba1') {
-    try {
-        let parr = window.location.pathname.split('/'); delete parr[parr.length-1];
-        let path = parr.join('/');
-        console.log(`getOccsFromFile:`, `${window.location.protocol}//${window.location.host}/${path}${occData[dataset].file}`);
-        let res = await fetch(occData[dataset].file);
-        let json = await res.json();
-        console.log(`getOccsFromFile(${occData[dataset].file}) RESULT:`, json);
-        return json;
-    } catch (err) {
-        console.log(`getOccsFromFile(${occData[dataset].file}) ERROR:`, err);
-        return new Error(err)
-    }
+    let parr = window.location.pathname.split('/'); delete parr[parr.length-1];
+    let path = parr.join('/');
+    console.log(`getOccsFromFile:`, `${window.location.protocol}//${window.location.host}/${path}${occData[dataset].file}`);
+    return fetchJsonFile(occData[dataset].file);
 }
+
 /*
 https://www.gbif.org/occurrence/search
 ?taxon_key=6953&taxon_key=5473&taxon_key=7017&taxon_key=9417&taxon_key=5481&taxon_key=1933999

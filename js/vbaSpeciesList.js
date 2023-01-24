@@ -17,9 +17,10 @@ objUrlParams.forEach((val, key) => {
       objOther[key] = val;
     }
   });
-
-const eleLbl = document.getElementById("speciesListLabel");
+  
+const eleDiv = document.getElementById("speciesListDiv");
 const eleTbl = document.getElementById("speciesListTable");
+const eleLbl = document.getElementById("speciesListLabel");
 
 /*
 geometry=POLYGON((-73.0 44.0,-72.75 44.0,-72.75 44.2,-73.0 44.2,-73.0 44.0))
@@ -62,7 +63,12 @@ async function getBlockSpeciesList(block='block_name', dataset=false, gWkt=false
         }
       }
     }
-    return {'head': hedSpcs, cols:['Scientific Name','Taxon Rank','Common Name','Image','Last Observed'], 'array': objSpcs};
+    return {
+        'head': hedSpcs, 
+        cols:['Scientific Name','Taxon Rank','Common Name','Image','Last Observed'], 
+        'array': objSpcs, 
+        'query': occs.query
+    };
   }
 
 var waitRow; var waitObj;
@@ -77,6 +83,13 @@ async function addTableWait() {
 function delTableWait() {
     waitObj.remove();
     waitRow.remove();
+}
+
+function addGBIFLink(geometry, taxonKeys) {
+    let eleGBIF = document.getElementById("gbifLink");
+    eleGBIF.href = `https://www.gbif.org/occurrence/search?${taxonKeys}&geometry=${geometry}`;
+    eleGBIF.target = "_blank";
+    eleGBIF.innerText = 'GBIF Occurrences';
 }
   
 //put one row in the header for column names
@@ -147,7 +160,10 @@ async function fillRow(spcKey, objSpc, objRow, rowIdx) {
 }
 
 function setLabelText(block, dataset=false, taxonKeys=false, count=0) {
-    if (eleLbl) {eleLbl.innerText = `VT Butterfly Atlas Species List for Survey Block '${block}'${dataset ? ' and dataset ' + dataset : ''}: ${count} taxa`;}
+if (eleLbl) {
+eleLbl.innerHTML = 
+`VT Butterfly Atlas Species List for Survey Block ${block}${dataset ? ' and dataset ' + dataset : ''}: (<u>${count} taxa</u>)`;
+}
 }
 
 if (block && geometry) {
@@ -155,6 +171,7 @@ if (block && geometry) {
     addTableWait();
     if (!dataset && (!taxonKeyA.length)) {taxonKeys = butterflyKeys}
     let spcs = await getBlockSpeciesList(block, dataset, geometry, taxonKeys);
+    addGBIFLink(geometry, taxonKeys);
     addTaxaFromArr(spcs.array);
     addTableHead(spcs.cols);
     setLabelText(block, dataset, taxonKeys, Object.keys(spcs.array).length);

@@ -37,3 +37,85 @@
 	border-right: 10px solid transparent;
 	border-bottom: 10px solid blue  ;
 }
+
+html, body, #mapid, .row-fluid{
+  height: 100%;
+}
+
+#map-wrapper {
+  width: 100%;
+  height: 600px;
+  position: relative;
+}
+
+#mapid {
+  width: 100%;
+  height: 100%;
+}
+
+#btn-wrapper {
+  position: absolute;
+  z-index: 10000;
+  top: 3px;
+  left: 3px;
+}
+
+.map-button {
+  display: block;
+  height: 30px;
+}
+
+.btn .btn-primary .map-button {
+  font-size: 8px;
+  font-weight: 10;
+}
+
+#lbl-wrapper {
+  position: absolute;
+  z-index: 10000;
+  top: 3px;
+  right: 3px;
+  text-align: right;
+}
+
+.map-label {
+  display: block;
+  color: blue;
+}
+
+#wait-overlay {
+  display: none;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  z-index: 90000;
+  background-color:grey;
+  opacity: 50%;
+  text-align: center;
+  vertical-align: center;
+}
+
+#wait-icon {
+  display: inline-block;
+  margin-top: 200px;
+  color: blue;
+}
+
+#speciesListLabel {
+  display: inline;
+  width: 100%;
+  text-align: center;
+}
+
+#gbifLink {
+  display: inline;
+  margin-left: 10px;
+}
+
+/* Both of these work to apply underline to just table header cells: */
+thead > tr > td {
+  text-decoration: underline;
+}
+thead tr td {
+  text-decoration: underline;
+}
