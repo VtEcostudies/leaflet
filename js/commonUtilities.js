@@ -21,20 +21,55 @@ export function parseCanonicalFromScientific(occJson) {
         break;
     }
     return name;
-  }
-  
+}
+
+/*
+    content-types: https://www.iana.org/assignments/media-types/media-types.xhtml
+    eg.
+    headers: {
+        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
+        'Content-Type': 'text/csv'
+    },
+*/
 export async function fetchJsonFile(filePath) {
     try {
-        let res = await fetch(filePath);
+        let options = {
+            'Content-type': 'application/json'
+            }
+        let res = await fetch(filePath, options);
         let json = await res.json();
-        console.log(`fetchFile(${filePath}) RESULT:`, json);
+        console.log(`fetchJsonFile(${filePath}) RESULT:`, json);
         return json;
     } catch (err) {
-        console.log(`fetchFile(${filePath}) ERROR:`, err);
+        console.log(`fetchJsonFile(${filePath}) ERROR:`, err);
         return new Error(err)
     }
 }
-  
+/*
+    content-types: https://www.iana.org/assignments/media-types/media-types.xhtml
+    eg.
+    headers: {
+        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
+        'Content-Type': 'text/csv'
+    },
+*/
+export async function fetchCsvFile(filePath) {
+    try {
+        let options = {
+            'Content-type': 'text/csv;charset=UTF-8'
+            }
+        let res = await fetch(filePath, options);
+        let text = await res.text();
+        console.log(`fetchCsvFile(${filePath}) RESULT:`, text);
+        return text;
+    } catch (err) {
+        console.log(`fetchCsvFile(${filePath}) ERROR:`, err);
+        return new Error(err)
+    }
+}
+
 export function loadJSON(file, callback) {
     try {
         loadFile(file, "application/json", (res) => {

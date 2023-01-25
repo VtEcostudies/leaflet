@@ -2,6 +2,7 @@
 - Show VT priority blocks on a map of VT
 - Load a json array from GBIF Occurrence API and populate the map with point occurrence data
 - How to pass parameters to a google form: https://support.google.com/a/users/answer/9308781?hl=en
+- How to implement geojson-vt with Leaflet: https://stackoverflow.com/questions/41223239/how-to-improve-performance-on-inserting-a-lot-of-features-into-a-map-with-leafle
 */
 import { occData, getOccsByFilters, getOccsByDatasetAndWKT, getOccsFromFile, icons } from './fetchGbifOccs.js';
 import { fetchJsonFile } from './commonUtilities.js';
@@ -30,6 +31,9 @@ var baseMapDefault = null;
 var abortData = false;
 var eleWait = document.getElementById("wait-overlay");
 var geoJsonData = true;
+var bindPopups = false;
+var bindToolTips = false;
+var useIconMarkers = false;
 
 //for standalone use
 function addMap() {
@@ -262,6 +266,8 @@ function onGeoBoundaryStyle(feature) {
   Add geoJson occurrences to map with their own layer control
 */
 async function addGeoJsonOccurrences(dataset='test', layerId=0) {
+  let grpName = occData[dataset].description;
+  let idGrpName = grpName.split(' ').join('_');
 
   if (groupLayerControl === false) {
     console.log('Adding groupLayerControl to map.')
@@ -296,8 +302,11 @@ async function addGeoJsonOccurrences(dataset='test', layerId=0) {
       name: occData[dataset].description,
       id: layerId
     }).addTo(valMap);
-    groupLayerControl.addOverlay(layer, occData[dataset].description);
     occGroup.addLayer(layer);
+    cmGroup[grpName] = occGroup;
+    cmCount[grpName] = json.features.length;
+    cmTotal[grpName] = json.features.length;
+    groupLayerControl.addOverlay(layer, `<label id="${idGrpName}">${grpName} (${cmCount[grpName]}/${cmTotal[grpName]})</label>`);
     eleWait.style.display = "none";
   } catch(err) {
     console.log('Error loading file', occData[dataset].geoJson, err);
@@ -397,9 +406,27 @@ function getIntersectingFeatures(e) {
 }
 
 /*
-  This now automatically breaks taxa into sub-taxa. To disable this feature, set the global flag
+  Handle a click on an occurrence marker. This is done to avoid hanging a popup on each point to improve performance.
+  There is a performance hit, still, because we have to hang popup data on the marker when it's created.
+*/
+function markerOnClick(e) {
+  console.log('markerOnClick e.latlng:', e.latlng, e.target.options);
+  console.log('markerOnClick e.target.options:', e.target.options);
 
-    taxaBreakout = 0;
+  var popup = L.popup({
+    maxHeight: 200,
+    keepInView: true
+    })
+    .setContent(occurrencePopupInfo(e.target.options))
+    .setLatLng(e.latlng)
+    .openOn(valMap);
+}
+
+/*
+  This is partially refactored for larger datasets:
+  - don't hang tooltips on each point
+  - don't hang popup on each point
+  - reduce 
 */
 async function addOccsToMap(occJsonArr=[], groupField='datasetKey', groupIcon, groupColor='Red') {
   let sciName;
@@ -407,9 +434,8 @@ async function addOccsToMap(occJsonArr=[], groupField='datasetKey', groupIcon, g
   cmTotal[groupField] = 0;
   if (!occJsonArr.length) return;
   eleWait.style.display = "block";
-  for (var i = 0; i < occJsonArr.length; i++) {
-      var occJson = occJsonArr[i];
-
+  //for (var i = 0; i < occJsonArr.length; i++) {var occJson = occJsonArr[i]; //synchronous loop
+  occJsonArr.forEach(occJson => { //asynchronous loop
       let grpName = groupField; //begin by assigning all occs to same group
       if (occJson[groupField]) {grpName = occJson[groupField];} //if the dataset has groupField, get the value of the json element for this record...
       let idGrpName = grpName.split(' ').join('_');
@@ -425,47 +451,56 @@ async function addOccsToMap(occJsonArr=[], groupField='datasetKey', groupIcon, g
       if (!occJson.decimalLatitude || !occJson.decimalLongitude) {
         if (typeof cmCount['missing'] === 'undefined') {cmCount['missing'] = 0;}
         cmCount['missing']++;
-        let gbifID = occJson.key ? occJsson.key : occJson.gbifID;
+        let gbifID = occJson.key ? occJson.key : occJson.gbifID;
         //console.log('WARNING: Occurrence Record without Lat/Lon values:', gbifID, 'missing:', cmCount['missing'], 'count:', cmTotal[grpName]);
-        continue;
+        //continue;
+        return;
       }
 
       var llLoc = L.latLng(occJson.decimalLatitude, occJson.decimalLongitude);
       cmCount[grpName]++; //count occs having location data
 
-/*
-      var popup = L.popup({
-          maxHeight: 200,
-          keepInView: true,
-      }).setContent(occurrencePopupInfo(occJson, cmCount[grpName]));
-*/
-      var marker = L.circleMarker(llLoc, {
-          fillColor: groupColor, //interior color
-          fillOpacity: 0.5, //values from 0 to 1
-          color: "black", //border color
-          weight: 1, //border thickness
-          radius: cmRadius,
-          index: cmCount[grpName],
-          occurrence: occJson.scientificName, //occJson.species,
-          time: getDateYYYYMMDD(occJson.eventDate),
-      })
-      //.bindPopup(popup);
-/*
-      var marker = L.marker(llLoc, {
-        icon: groupIcon ? groupIcon : icons.square,
-        index: cmCount[grpName],
-        occurrence: occJson.scientificName,
-        time: getDateYYYYMMDD(occJson.eventDate)
-      })
-      //.bindPopup(popup);
-*/
-      //marker.bringToFront(); //not necessary, currently. can't hurt though.
-      //marker.addTo(valMap); //not necessary - by adding layerGroup to map, then marker to layerGroup, that does it.
+      if (useIconMarkers) {
+        var marker = L.marker(llLoc, {
+          icon: groupIcon ? groupIcon : icons.square
+        })
+      } else {
+        var marker = L.circleMarker(llLoc, {
+            fillColor: groupColor, //interior color
+            fillOpacity: 0.5, //values from 0 to 1
+            color: "black", //border color
+            weight: 1, //border thickness
+            radius: cmRadius
+        })
+      }
+
+      if (bindPopups) {
+        var popup = L.popup({
+            maxHeight: 200,
+            keepInView: true,
+        }).setContent(occurrencePopupInfo(occJson));
+        marker.bindPopup(popup);
+      } else {
+        if (occJson.gbifID) marker.options.gbifID = occJson.gbifID;
+        if (occJson.scientificName) marker.options.scientificName = occJson.scientificName;
+        if (occJson.decimalLatitude) marker.options.decimalLatitude = occJson.decimalLatitude;
+        if (occJson.decimalLongitude) marker.options.decimalLongitude = occJson.decimalLongitude;
+        if (occJson.eventDate) marker.options.eventDate = occJson.eventDate;
+        if (occJson.basisOfRecord) marker.options.basisOfRecord = occJson.basisOfRecord;
+        if (occJson.recordedBy) marker.options.recordedBy = occJson.recordedBy;
+        marker.on('click', markerOnClick);
+      }
+      if (bindToolTips) {
+        if (occJson.eventDate) {
+          marker.bindTooltip(`${sciName}<br>${getDateYYYYMMDD(occJson.eventDate)}`);
+        } else {
+          marker.bindTooltip(`${sciName}<br>No date supplied.`);
+        }
+      }
 
       if (typeof cmGroup[grpName] === 'undefined') {
         console.log(`cmGroup[${grpName}] is undefined...adding.`);
         cmGroup[grpName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-        cmGroup[grpName].on('click', function() { alert('Clicked on a member of the group!'); })
         if (groupLayerControl) {
           groupLayerControl.addOverlay(cmGroup[grpName], `<label id="${idGrpName}">${grpName}</label>`);
         } else {
@@ -478,26 +513,20 @@ async function addOccsToMap(occJsonArr=[], groupField='datasetKey', groupIcon, g
       } else {
         cmGroup[grpName].addLayer(marker); //add this marker to the current layerGroup, which is an object with possibly multiple layerGroups by sciName
       }
-/*
-      if (occJson.eventDate) {
-          marker.bindTooltip(`${sciName}<br>${getDateYYYYMMDD(occJson.eventDate)}`);
-      } else {
-          marker.bindTooltip(`${sciName}<br>No date supplied.`);
-      }
-*/
     } //end for-loop
-
+    )
   if (document.getElementById("jsonResults")) {
       document.getElementById("jsonResults").innerHTML += ` | records mapped: ${cmCount['all']}`;
   }
 
-  //cmGroup's keys are sciNames, not elementIds...
+  //cmGroup's keys are sciNames or dataset descriptions
+  //each layer's control label's id=idGrpName has spaces replaced with underscores
   var id = null;
   Object.keys(cmGroup).forEach((grpName) => {
-    id = grpName.split(' ').join('_');
-    if (document.getElementById(id)) {
-        console.log(`-----match----->> ${id} | ${grpName}`, cmCount[grpName], cmTotal[grpName]);
-        document.getElementById(id).innerHTML = `${grpName} (${cmCount[grpName]}/${cmTotal[grpName]})`;
+    let idGrpName = grpName.split(' ').join('_');
+    if (document.getElementById(idGrpName)) {
+        console.log(`-----match----->> ${idGrpName} | ${grpName}`, cmCount[grpName], cmTotal[grpName]);
+        document.getElementById(idGrpName).innerHTML = `${grpName} (${cmCount[grpName]}/${cmTotal[grpName]})`;
     }
   });
   eleWait.style.display = "none";
@@ -579,9 +608,9 @@ function occurrencePopupInfo(occRecord) {
                 info += `Basis of Record: ${occRecord[key]}<br/>`;
                 break;
             case 'eventDate':
-                var msecs = occRecord[key]; //epoch date in milliseconds at time 00:00
+                //var msecs = occRecord[key]; //epoch date in milliseconds at time 00:00
                 //info += `Event Date: ${getDateMMMMDoYYYY(msecs)}<br/>`; //this for json occurrences (from eg. GBIF API)
-                info += `Event Date: ${occRecord[key]}<br/>`; //this for geoJson occurrences
+                info += `Event Date: ${moment(occRecord[key]).format('YYYY-MM-DD')}<br/>`; //this for geoJson occurrences
                 break;
             case 'datasetName':
                 info += `Dataset Name: ${occRecord[key]}<br/>`;
@@ -688,6 +717,17 @@ function clearData() {
   groupLayerControl = false;
 }
 
+async function clearDataSet(dataset=false) {
+  if (!dataset) return;
+
+  let key = occData[dataset].description;
+  delete cmGroup[key];
+  delete cmCount[key];
+  delete cmTotal[key];
+  delete cgColor[key];
+  if (groupLayerControl) await groupLayerControl.removeLayer(cmGroup[key]);
+}
+
 function addMapCallbacks() {
     valMap.on('zoomend', function () {
         console.log(`Map Zoom: ${valMap.getZoom()}`);
@@ -716,35 +756,56 @@ if (document.getElementById("dataType")) {
   });
 }
 if (document.getElementById("getVtb1")) {
-  document.getElementById("getVtb1").addEventListener("click", () => {
+  document.getElementById("getVtb1").addEventListener("click", async () => {
     abortData = false;
     let dataset = 'vtb1';
-    if (geoJsonData) {addGeoJsonOccurrences(dataset);
-    } else {getJsonFileData(dataset);}
+    let grpName = occData[dataset].description;
+    console.log('LOAD VTB1', grpName, cmGroup[grpName], cmGroup)
+    if (cmGroup[grpName]) {
+      alert('Dataset already loaded.');
+    } else {
+      if (geoJsonData) {addGeoJsonOccurrences(dataset);
+      } else {getJsonFileData(dataset);}
+    }
   });
 }
 if (document.getElementById("getVtb2")) {
   document.getElementById("getVtb2").addEventListener("click", () => {
     abortData = false;
-    let dataset = 'vtb2';
-    if (geoJsonData) {addGeoJsonOccurrences(dataset);
-    } else {getJsonFileData(dataset);}
+    let dataset = 'vtb2';;
+    let grpName = occData[dataset].description;
+    if (cmGroup[grpName]) {
+      alert('Dataset already loaded.');
+    } else {
+      if (geoJsonData) {addGeoJsonOccurrences(dataset);
+      } else {getJsonFileData(dataset);}
+    }
   });
 }
 if (document.getElementById("getVba1")) {
   document.getElementById("getVba1").addEventListener("click", () => {
     abortData = false;
     let dataset = 'vba1';
-    if (geoJsonData) {addGeoJsonOccurrences(dataset);
-    } else {getJsonFileData(dataset);}
+    let grpName = occData[dataset].description;
+    if (cmGroup[grpName]) {
+      alert('Dataset already loaded.');
+    } else {
+      if (geoJsonData) {addGeoJsonOccurrences(dataset);
+      } else {getJsonFileData(dataset);}
+    }
   });
 }
 if (document.getElementById("getVba2")) {
   document.getElementById("getVba2").addEventListener("click", () => {
     abortData = false;
     let dataset = 'vba2';
-    if (geoJsonData) {addGeoJsonOccurrences(dataset);
-    } else {getJsonFileData(dataset);}
+    let grpName = occData[dataset].description;
+    if (cmGroup[grpName]) {
+      alert('Dataset already loaded.');
+    } else {
+      if (geoJsonData) {addGeoJsonOccurrences(dataset);
+      } else {getJsonFileData(dataset);}
+    }
   });
 }
 if (document.getElementById("getTest")) {
