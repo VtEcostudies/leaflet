@@ -6,6 +6,7 @@
 */
 import { occData, getOccsByFilters, getOccsByDatasetAndWKT, getOccsFromFile, icons } from './fetchGbifOccs.js';
 import { fetchJsonFile } from './commonUtilities.js';
+import { getSignups, fetchGoogleSheetData } from './fetchGoogleSheetsData.js';
 
 var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
 var vtAltCtr = [43.858297, -72.446594]; //VT border center for the speciespage view, where px bounds are small and map is zoomed to fit
@@ -658,18 +659,17 @@ if (document.getElementById("valSurveyBlocksEAME")) {
   initGbifStandalone(layerPath, layerName, 8);
 }
 
+async function getSurveyBlockData() {
+  //get an array of signups by blockname with name and date
+  let sign = await getSignups();
+  console.log('getSurveyBlockData', sign);
+}
+
 if (document.getElementById("valSurveyBlocksVBA")) {
   let layerPath = 'geojson/surveyblocksWGS84_orig.geojson';
   let layerName = 'Survey Blocks - VBA2';
   initGbifStandalone(layerPath, layerName, 9);
-  /*
-  if (!groupLayerControl) {
-    groupLayerControl = L.control.layers().addTo(valMap);
-    groupLayerControl.setPosition("bottomright");
-  }
-  */
-  //getJsonFileData('test');
-  //showUrlInfo('test');
+  getSurveyBlockData();
 }
 
 async function getLiveData(dataset='vba2') {
@@ -825,5 +825,10 @@ if (document.getElementById("clearData")) {
 if (document.getElementById("abortData")) {
   document.getElementById("abortData").addEventListener("click", () => {
       abortData = true;
+  });
+}
+if (document.getElementById("test")) {
+  document.getElementById("test").addEventListener("click", () => {
+    getSurveyBlockData();
   });
 }
