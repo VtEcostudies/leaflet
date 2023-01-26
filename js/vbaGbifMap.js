@@ -34,7 +34,8 @@ var eleWait = document.getElementById("wait-overlay");
 var geoJsonData = true;
 var bindPopups = false;
 var bindToolTips = false;
-var useIconMarkers = false;
+var iconMarkers = false;
+var signUps = []; //array of survey blocks that have been signed up
 
 //for standalone use
 function addMap() {
@@ -270,6 +271,8 @@ async function addGeoJsonOccurrences(dataset='test', layerId=0) {
   let grpName = occData[dataset].description;
   let idGrpName = grpName.split(' ').join('_');
 
+  eleWait.style.display = "block";
+
   if (groupLayerControl === false) {
     console.log('Adding groupLayerControl to map.')
     groupLayerControl = L.control.layers().addTo(valMap);
@@ -280,24 +283,28 @@ async function addGeoJsonOccurrences(dataset='test', layerId=0) {
 
   occGroup = new L.FeatureGroup();
   
-  var geojsonMarkerOptions = {
-    radius: 5,
-    fillColor: occData[dataset].color,
-    color: 'Black',
-    weight: 1,
-    opacity: 1,
-    fillOpacity: 0.5
-  };
-  
   console.log('addGeoJsonOccurrences adding', dataset, occData[dataset].geoJson);
-
-  eleWait.style.display = "block";
 
   try {
     let json = await fetchJsonFile(`geojson/${occData[dataset].geoJson}`);
     let layer = await L.geoJSON(json, {
-      pointToLayer: function (feature, latlng) {
-          return L.circleMarker(latlng, geojsonMarkerOptions);
+      pointToLayer: function(feature, latlng) {
+        if (iconMarkers) {
+          let options = {
+            icon: occData[dataset].icon
+          }
+          return L.marker(latlng, options);
+        } else {
+          let options = {
+            radius: 5,
+            fillColor: occData[dataset].color,
+            color: 'Black',
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.3
+          }
+          return L.circleMarker(latlng, options);
+        };      
       },
       onEachFeature: onEachGeoOccFeature,
       name: occData[dataset].description,
@@ -312,7 +319,27 @@ async function addGeoJsonOccurrences(dataset='test', layerId=0) {
   } catch(err) {
     console.log('Error loading file', occData[dataset].geoJson, err);
     eleWait.style.display = "none";
+    //alert(err.message);
   }
+}
+
+function geoJsonMarker(feature, latlng) {
+  let marker;
+  if (iconMarkers) {
+    options = {
+      icon: groupIcon ? groupIcon : icons.square
+    }
+  } else {
+    options = {
+      radius: 5,
+      fillColor: occData[dataset].color,
+      color: 'Black',
+      weight: 1,
+      opacity: 1,
+      fillOpacity: 0.5
+    }
+    return L.circleMarker(latlng, options);
+  };
 }
 
 /*
@@ -461,7 +488,7 @@ async function addOccsToMap(occJsonArr=[], groupField='datasetKey', groupIcon, g
       var llLoc = L.latLng(occJson.decimalLatitude, occJson.decimalLongitude);
       cmCount[grpName]++; //count occs having location data
 
-      if (useIconMarkers) {
+      if (iconMarkers) {
         var marker = L.marker(llLoc, {
           icon: groupIcon ? groupIcon : icons.square
         })
@@ -661,13 +688,38 @@ if (document.getElementById("valSurveyBlocksEAME")) {
 
 async function getSurveyBlockData() {
   //get an array of signups by blockname with name and date
-  let sign = await getSignups();
-  console.log('getSurveyBlockData', sign);
+  signUps = await getSignups();
+  console.log('getSurveyBlockData', signUps);
+  putSignups(signUps);
+}
+
+function putSignups(sign) {
+  let layer;
+  let layers = geoGroup._layers;
+  for (const[key, val] of Object.entries(layers)) {
+    if ('Survey Blocks'==val.options.name) {
+      layer = val;
+    }
+  }
+  if (layer) {
+    console.log('putSignups', layer);
+
+    for (const[key, lay] of Object.entries(layer._layers)) {
+      let blockName = lay.feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
+      if (sign[blockName]) {
+        console.log(`Found Block Signup for`, blockName);
+        lay.setStyle({
+          fillColor:"red",
+          fillOpacity: 0.5
+        })
+      }
+    }
+  }
 }
 
 if (document.getElementById("valSurveyBlocksVBA")) {
   let layerPath = 'geojson/surveyblocksWGS84_orig.geojson';
-  let layerName = 'Survey Blocks - VBA2';
+  let layerName = 'Survey Blocks';
   initGbifStandalone(layerPath, layerName, 9);
   getSurveyBlockData();
 }
@@ -753,6 +805,14 @@ if (document.getElementById("dataType")) {
   eleType.addEventListener("click", () => {
     geoJsonData = eleType.checked;
     console.log('dataType Click', eleType.checked, geoJsonData);
+  });
+}
+//iconMarkers
+if (document.getElementById("dataType")) {
+  let eleIcon = document.getElementById("iconMarkers");
+  eleIcon.addEventListener("click", () => {
+    iconMarkers = eleIcon.checked;
+    console.log('dataType Click', eleIcon.checked, iconMarkers);
   });
 }
 if (document.getElementById("getVtb1")) {
