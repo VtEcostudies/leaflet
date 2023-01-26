@@ -63,6 +63,8 @@ export async function fetchCsvFile(filePath) {
             'Content-type': 'text/csv;charset=UTF-8'
             }
         let res = await fetch(filePath, options);
+        console.log(`fetchCsvFile(${filePath}) RESULT:`, res);
+        if (res.status > 299) {return res;}
         let text = await res.text();
         console.log(`fetchCsvFile(${filePath}) RESULT:`, text);
         return text;
