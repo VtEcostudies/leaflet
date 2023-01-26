@@ -1,4 +1,4 @@
-import { googleApiKey } from "./secrets";
+import { googleApiKey } from "./secrets.js";
 
 let defaultSheetId = '1O5fk2pDQCg_U4UNzlYSbewRJs4JVgonKEjg3jzDO6mA';
 
