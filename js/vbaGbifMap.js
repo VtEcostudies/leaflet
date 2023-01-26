@@ -36,6 +36,13 @@ var bindPopups = false;
 var bindToolTips = false;
 var iconMarkers = false;
 var signUps = []; //array of survey blocks that have been signed up
+var signupStyle = {
+  color: "black",
+  weight: 1,
+  fillColor: "green",
+  fillOpacity: 0.5,
+  disabled: true
+}
 
 //for standalone use
 function addMap() {
@@ -213,10 +220,11 @@ function onGeoBoundaryFeature(feature, layer) {
         var name = feature.properties.BLOCKNAME;
         var link = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
         if (feature.properties.BLOCK_TYPE=='PRIORITY') {
-          pops = `<b><u>BUTTERFLY ATLAS PRIORITY BLOCK</u></b></br>`;
+          pops = `<b><u>BUTTERFLY ATLAS PRIORITY BLOCK</u></b></br></br>`;
         } else {
-          pops = `<b><u>BUTTERFLY ATLAS SURVEY BLOCK</u></b></br>`;
+          pops = `<b><u>BUTTERFLY ATLAS SURVEY BLOCK</u></b></br></br>`;
         }
+        //figure out if block has been chosen already
         let type = feature.geometry.type; //this is MULTIPOLYGON, which I think GBIF can't handle
         let cdts = feature.geometry.coordinates[0][0];
         let gWkt = 'POLYGON((';
@@ -227,8 +235,12 @@ function onGeoBoundaryFeature(feature, layer) {
         }
         gWkt = gWkt.slice(0,-1) + '))';
         console.log('WKT Geometry:', gWkt);
-        pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get <b>BLOCK MAP</b> for ${name}</a></br>`;
-        pops += `<a target="_blank" href="https://docs.google.com/forms/d/e/1FAIpQLSegdid40-VdB_xtGvHt-WIEWR_TapHnbaxj-LJWObcWrS5ovg/viewform?usp=pp_url&entry.1143709545=${link}"><b>SIGN-UP</b> for ${name}</a></br>`;
+        pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get <b>BLOCK MAP</b> for ${name}</a></br></br> `;
+        if (signUps[link]) {  
+          pops += `Survey block was chosen by <b>${signUps[link].first} ${signUps[link].last}</b> on ${signUps[link].date}</br></br>`;
+        } else {
+          pops += `<a target="_blank" href="https://docs.google.com/forms/d/e/1FAIpQLSegdid40-VdB_xtGvHt-WIEWR_TapHnbaxj-LJWObcWrS5ovg/viewform?usp=pp_url&entry.1143709545=${link}"><b>SIGN-UP</b> for ${name}</a></br></br>`;
+        }
         pops += `<a target="_blank" href="vba_species_list.html?block=${name}&geometry=${gWkt}">Get <b>SPECIES LIST</b> for ${name}</a></br>`;
         if (pops) {layer.bindPopup(pops).openPopup();}
       }
@@ -240,17 +252,25 @@ function onGeoBoundaryFeature(feature, layer) {
 */
 function onGeoBoundaryStyle(feature) {
   if (feature.properties.BLOCK_TYPE) {
+    let style;
     switch(feature.properties.BLOCK_TYPE) {
       case 'PRIORITY1':
-        return {color:"black", weight:1, fillOpacity:0.2, fillColor:"red"};
+        style = {color:"black", weight:1, fillOpacity:0.2, fillColor:"red"};
         break;
       case 'PRIORITY':
-        return {color:"black", weight:1, fillOpacity:0.2, fillColor:"yellow"};
+        style = {color:"black", weight:1, fillOpacity:0.2, fillColor:"yellow"};
         break;
       case 'NONPRIOR':
-        return {color:"black", weight:1, fillOpacity:0.0, fillColor:"blue"};
+        style = {color:"black", weight:1, fillOpacity:0.0, fillColor:"blue"};
         break;
     }
+    //Check the signup array to see if block was chosen
+    let blockName = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
+    if (signUps[blockName]) {
+      console.log(`onGeoBoundaryStyle | Found Block Signup for`, blockName);
+      style = signupStyle;
+      }
+    return style;
   } else {
     if (feature.properties.BIOPHYSRG1) { //biophysical regions
       return {color:"red", weight:1, fillOpacity:0.1, fillColor:"red"};
@@ -702,18 +722,16 @@ function putSignups(sign) {
     }
   }
   if (layer) {
-    console.log('putSignups', layer);
-
-    for (const[key, lay] of Object.entries(layer._layers)) {
-      let blockName = lay.feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
+    //console.log('putSignups', layer);
+    layer.eachLayer(function(subLay) {
+      let blockName = subLay.feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
       if (sign[blockName]) {
-        console.log(`Found Block Signup for`, blockName);
-        lay.setStyle({
-          fillColor:"red",
-          fillOpacity: 0.5
-        })
+        console.log(`putSignups found block signup for`, blockName);
+        subLay.setStyle(signupStyle)
       }
-    }
+    })
+  } else {
+    console.log(`putSignups | layer named 'Survey Blocks' not found.`)
   }
 }
 
