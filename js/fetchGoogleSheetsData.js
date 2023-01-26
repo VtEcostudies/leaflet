@@ -7,6 +7,8 @@ export async function fetchGoogleSheetData(spreadsheetId=defaultSheetId, sheetNu
 
     try {
         let res = await fetch(apiUrl);
+        console.log(`fetchGoogleSheetData(${spreadsheetId},${sheetNumber}) RESULT:`, res);
+        if (res.status > 299) {return res;}
         let json = await res.json();
         console.log(`fetchGoogleSheetData(${spreadsheetId}) RESULT:`, json);
         let prop = json.sheets[sheetNumber].properties.title;
@@ -23,13 +25,21 @@ export async function fetchGoogleSheetData(spreadsheetId=defaultSheetId, sheetNu
 }
 
 export async function getSignups(sheetNumber=0) {
-    let data = await fetchGoogleSheetData(defaultSheetId, sheetNumber);
-    let sign = [];
-    data.rows.forEach(row => {
-        sign[row.values[1].formattedValue] = {
-            'last':row.values[4].formattedValue, 
-            'first':row.values[3].formattedValue,
-            'date':row.values[0].formattedValue}
+    try {
+        let res = await fetchGoogleSheetData(defaultSheetId, sheetNumber);
+        console.log('getSignups RESULT:', res);
+        if (res.status > 299) {return res;}
+        let sign = [];
+        res.rows.forEach(row => {
+            sign[row.values[1].formattedValue] = {
+                'last':row.values[4].formattedValue, 
+                'first':row.values[3].formattedValue,
+                'date':row.values[0].formattedValue
+            }
     })
     return sign;
+    } catch(err) {
+        console.log(`getSignups(${sheetNumber}) ERROR:`, err);
+        return new Error(err)
+    }
 }
