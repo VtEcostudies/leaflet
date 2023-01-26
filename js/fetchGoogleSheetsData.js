@@ -1,6 +1,6 @@
 /*
 */
-let googleAPIKey = 'AIzaSyCP8ifXU2ofDp1dBIPW3KZo5ERuO8N9PZk';
+let googleAPIKey = '';
 let defaultSheetId = '1O5fk2pDQCg_U4UNzlYSbewRJs4JVgonKEjg3jzDO6mA';
 
 export async function fetchGoogleSheetData(spreadsheetId=defaultSheetId, sheetNumber=0) {
