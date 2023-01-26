@@ -7,6 +7,7 @@
 import { occData, getOccsByFilters, getOccsByDatasetAndWKT, getOccsFromFile, icons } from './fetchGbifOccs.js';
 import { fetchJsonFile } from './commonUtilities.js';
 import { getSignups, fetchGoogleSheetData } from './fetchGoogleSheetsData.js';
+import { getWikiPage } from './wiki_page_data.js'
 
 var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
 var vtAltCtr = [43.858297, -72.446594]; //VT border center for the speciespage view, where px bounds are small and map is zoomed to fit
@@ -372,7 +373,7 @@ function onEachGeoOccFeature(feature, layer) {
       maxHeight: 200,
       keepInView: true
       })
-      .setContent(occurrencePopupInfo(feature.properties))
+      .setContent(await occurrencePopupInfo(feature.properties))
       .setLatLng(L.latLng(feature.properties.decimalLatitude, feature.properties.decimalLongitude))
       .openOn(valMap);
     });
@@ -457,7 +458,7 @@ function getIntersectingFeatures(e) {
   Handle a click on an occurrence marker. This is done to avoid hanging a popup on each point to improve performance.
   There is a performance hit, still, because we have to hang popup data on the marker when it's created.
 */
-function markerOnClick(e) {
+async function markerOnClick(e) {
   console.log('markerOnClick e.latlng:', e.latlng, e.target.options);
   console.log('markerOnClick e.target.options:', e.target.options);
 
@@ -465,7 +466,7 @@ function markerOnClick(e) {
     maxHeight: 200,
     keepInView: true
     })
-    .setContent(occurrencePopupInfo(e.target.options))
+    .setContent(await occurrencePopupInfo(e.target.options))
     .setLatLng(e.latlng)
     .openOn(valMap);
 }
@@ -483,7 +484,7 @@ async function addOccsToMap(occJsonArr=[], groupField='datasetKey', groupIcon, g
   if (!occJsonArr.length) return;
   eleWait.style.display = "block";
   //for (var i = 0; i < occJsonArr.length; i++) {var occJson = occJsonArr[i]; //synchronous loop
-  occJsonArr.forEach(occJson => { //asynchronous loop
+  occJsonArr.forEach(async occJson => { //asynchronous loop
       let grpName = groupField; //begin by assigning all occs to same group
       if (occJson[groupField]) {grpName = occJson[groupField];} //if the dataset has groupField, get the value of the json element for this record...
       let idGrpName = grpName.split(' ').join('_');
@@ -526,7 +527,7 @@ async function addOccsToMap(occJsonArr=[], groupField='datasetKey', groupIcon, g
         var popup = L.popup({
             maxHeight: 200,
             keepInView: true,
-        }).setContent(occurrencePopupInfo(occJson));
+        }).setContent(await occurrencePopupInfo(occJson));
         marker.bindPopup(popup);
       } else {
         if (occJson.gbifID) marker.options.gbifID = occJson.gbifID;
@@ -536,6 +537,7 @@ async function addOccsToMap(occJsonArr=[], groupField='datasetKey', groupIcon, g
         if (occJson.eventDate) marker.options.eventDate = occJson.eventDate;
         if (occJson.basisOfRecord) marker.options.basisOfRecord = occJson.basisOfRecord;
         if (occJson.recordedBy) marker.options.recordedBy = occJson.recordedBy;
+        marker.options.canonicalName = canName ? canName : occJson.scientificName;
         marker.on('click', markerOnClick);
       }
       if (bindToolTips) {
@@ -592,7 +594,6 @@ function parseCanonicalFromScientific(occJson) {
       break;
     case 'SPECIES':
       name = `${toks[0]} ${toks[1]}`;
-      name = occJson.species;
       break;
     case 'GENUS':
     default:
@@ -618,7 +619,7 @@ function getDateMMMMDoYYYY(msecs) {
     return m.format('MMMM Do YYYY');
 }
 
-function occurrencePopupInfo(occRecord) {
+async function occurrencePopupInfo(occRecord) {
     var info = '';
 
     Object.keys(occRecord).forEach(function(key) {
@@ -667,7 +668,20 @@ function occurrencePopupInfo(occRecord) {
                 //info += `${key}: ${occRecord[key]}<br/>`;
             }
         });
-
+        try {
+          console.log(`occurrencePopupInfo`, occRecord.canonicalName, occRecord.taxonRank);
+          let canName = false;
+          if (occRecord.canonicalName) {canName = occRecord.canonicalName;}
+          else if (occRecord.taxonRank) {canName = parseCanonicalFromScientific(occRecord);}
+          if (canName) {
+            let wik = await getWikiPage(occRecord.canonicalName);
+            if (wik.thumbnail) {
+              info += `<a href="${wik.originalimage.source}"><img src="${wik.thumbnail.source}" width="50" height="50"><br/></a>`;
+            }
+          }
+        } catch(err) {
+          console.log(`occurrencePopupInfo::getWikiPage ERROR:`, err);
+        }
     return info;
 }
 
@@ -820,6 +834,7 @@ if (document.getElementById("zoomVT")) {
 //dataType
 if (document.getElementById("dataType")) {
   let eleType = document.getElementById("dataType");
+  geoJsonData = eleType.checked;
   eleType.addEventListener("click", () => {
     geoJsonData = eleType.checked;
     console.log('dataType Click', eleType.checked, geoJsonData);

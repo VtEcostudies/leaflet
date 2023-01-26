@@ -58,7 +58,7 @@ export async function getOccsFromFile(dataset='vba1') {
     let parr = window.location.pathname.split('/'); delete parr[parr.length-1];
     let path = parr.join('/');
     console.log(`getOccsFromFile:`, `${window.location.protocol}//${window.location.host}/${path}${occData[dataset].file}`);
-    return fetchJsonFile(occData[dataset].file);
+    return fetchJsonFile('occjson/' + occData[dataset].file);
 }
 
 /*
