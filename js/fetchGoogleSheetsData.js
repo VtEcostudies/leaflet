@@ -1,10 +1,9 @@
-/*
-*/
-let googleAPIKey = '';
+import { googleApiKey } from "./secrets";
+
 let defaultSheetId = '1O5fk2pDQCg_U4UNzlYSbewRJs4JVgonKEjg3jzDO6mA';
 
 export async function fetchGoogleSheetData(spreadsheetId=defaultSheetId, sheetNumber=0) {
-    let apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/?key=${googleAPIKey}&includeGridData=true`;
+    let apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/?key=${googleApiKey}&includeGridData=true`;
 
     try {
         let res = await fetch(apiUrl);
