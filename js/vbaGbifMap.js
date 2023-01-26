@@ -4,7 +4,7 @@
 - How to pass parameters to a google form: https://support.google.com/a/users/answer/9308781?hl=en
 - How to implement geojson-vt with Leaflet: https://stackoverflow.com/questions/41223239/how-to-improve-performance-on-inserting-a-lot-of-features-into-a-map-with-leafle
 */
-import { occData, getOccsByFilters, getOccsByDatasetAndWKT, getOccsFromFile, icons } from './fetchGbifOccs.js';
+import { occData, getOccsByFilters, getOccsFromFile, getGbifDataset, icons } from './fetchGbifOccs.js';
 import { fetchJsonFile } from './commonUtilities.js';
 import { getSignups, fetchGoogleSheetData } from './fetchGoogleSheetsData.js';
 import { getWikiPage } from './wiki_page_data.js'
@@ -229,13 +229,13 @@ function onGeoBoundaryFeature(feature, layer) {
         let type = feature.geometry.type; //this is MULTIPOLYGON, which I think GBIF can't handle
         let cdts = feature.geometry.coordinates[0][0];
         let gWkt = 'POLYGON((';
-        console.log('feature.geometry.coordinates[0][0]', cdts)
+        //console.log('feature.geometry.coordinates[0][0]', cdts)
         for (var i=0; i<cdts.length; i++) {
-          console.log(`feat.geom.cdts[0][0][${i}]`, cdts[i]);
+          //console.log(`feat.geom.cdts[0][0][${i}]`, cdts[i]);
           gWkt += `${cdts[i][0]} ${cdts[i][1]},`;
         }
         gWkt = gWkt.slice(0,-1) + '))';
-        console.log('WKT Geometry:', gWkt);
+        //console.log('WKT Geometry:', gWkt);
         pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get <b>BLOCK MAP</b> for ${name}</a></br></br> `;
         if (signUps[link]) {  
           pops += `Survey block was chosen by <b>${signUps[link].first} ${signUps[link].last}</b> on ${signUps[link].date}</br></br>`;
@@ -380,23 +380,6 @@ function onEachGeoOccFeature(feature, layer) {
 
   layer.on('mousemove', function (event) {
     //console.log('onEachGeoOccFeature mousemove', event);
-/*
-    if (feature.properties) {
-      var obj = feature.properties;
-      var tips = '';
-      for (var key in obj) { //iterate over feature properties
-        switch(key.toLowerCase()) {
-          case 'scientificName':
-          case 'eventDate':
-          case 'recordedBy':
-          case 'observedBy':
-            tips += `${key}: ${obj[key]}<br>`;
-            break;
-        }
-      }
-      if (tips) {layer.bindTooltip(tips).openTooltip();}
-    }
-*/
   } );
 }
 
@@ -459,8 +442,8 @@ function getIntersectingFeatures(e) {
   There is a performance hit, still, because we have to hang popup data on the marker when it's created.
 */
 async function markerOnClick(e) {
-  console.log('markerOnClick e.latlng:', e.latlng, e.target.options);
-  console.log('markerOnClick e.target.options:', e.target.options);
+  //console.log('markerOnClick e.latlng:', e.latlng, e.target.options);
+  //console.log('markerOnClick e.target.options:', e.target.options);
 
   var popup = L.popup({
     maxHeight: 200,
@@ -475,7 +458,7 @@ async function markerOnClick(e) {
   This is partially refactored for larger datasets:
   - don't hang tooltips on each point
   - don't hang popup on each point
-  - reduce 
+  - externally, reduce dataset size by removing unnecessary columns
 */
 async function addOccsToMap(occJsonArr=[], groupField='datasetKey', groupIcon, groupColor='Red') {
   let sciName;
@@ -537,12 +520,14 @@ async function addOccsToMap(occJsonArr=[], groupField='datasetKey', groupIcon, g
         if (occJson.eventDate) marker.options.eventDate = occJson.eventDate;
         if (occJson.basisOfRecord) marker.options.basisOfRecord = occJson.basisOfRecord;
         if (occJson.recordedBy) marker.options.recordedBy = occJson.recordedBy;
+        if (occJson.datasetName) marker.options.datasetName = occJson.datasetName;
+        if (occJson.datasetKey) marker.options.datasetKey = occJson.datasetKey;
         marker.options.canonicalName = canName ? canName : occJson.scientificName;
         marker.on('click', markerOnClick);
       }
       if (bindToolTips) {
         if (occJson.eventDate) {
-          marker.bindTooltip(`${sciName}<br>${getDateYYYYMMDD(occJson.eventDate)}`);
+          marker.bindTooltip(`${sciName}<br>${moment(occJson.eventDate).format('YYYY-MM-DD')}`);
         } else {
           marker.bindTooltip(`${sciName}<br>No date supplied.`);
         }
@@ -603,22 +588,6 @@ function parseCanonicalFromScientific(occJson) {
   return name;
 }
 
-/*
- * use moment to convert eventDate (which comes to us from VAL API as UTC epoch milliseconds with time *removed*, so
- * it's always time 00:00, and we cannot report time, only date) to a standard date format.
- *
- * return date in the format YYYY-MM-DD
- */
-function getDateYYYYMMDD(msecs) {
-    var m = moment.utc(msecs);
-    return m.format('YYYY-MM-DD');
-}
-
-function getDateMMMMDoYYYY(msecs) {
-    var m = moment.utc(msecs);
-    return m.format('MMMM Do YYYY');
-}
-
 async function occurrencePopupInfo(occRecord) {
     var info = '';
 
@@ -669,12 +638,16 @@ async function occurrencePopupInfo(occRecord) {
             }
         });
         try {
-          console.log(`occurrencePopupInfo`, occRecord.canonicalName, occRecord.taxonRank);
+          if (occRecord.datasetKey && !occRecord.datasetName) {
+            let dst = await getGbifDataset(occRecord.datasetKey);
+            info += `Dataset: <a href="https://gbif.org/dataset/${occRecord.datasetKey}">${dst.title}<br/></a>`;
+          }
+          console.log(`occurrencePopupInfo | canonicalName:`, occRecord.canonicalName, 'taxonRank:', occRecord.taxonRank);
           let canName = false;
           if (occRecord.canonicalName) {canName = occRecord.canonicalName;}
           else if (occRecord.taxonRank) {canName = parseCanonicalFromScientific(occRecord);}
           if (canName) {
-            let wik = await getWikiPage(occRecord.canonicalName);
+            let wik = await getWikiPage(canName);
             if (wik.thumbnail) {
               info += `<a href="${wik.originalimage.source}"><img src="${wik.thumbnail.source}" width="50" height="50"><br/></a>`;
             }

@@ -10,11 +10,11 @@ export var icons = {
     triangle: L.divIcon({className: 'triangle'})
 };
 export const occData = {
-    'vtb1':{geoJson:'vtb1_occs_1000-2002.geojson','file':'vtb1_occs_1000-2002.json','description':'Obs 1000-2002','icon':icons.square,'color':'Red'},
-    'vtb2':{geoJson:'vtb2_occs_2008-2022.geojson','file':'vtb2_occs_2008-2022.json','description':'Obs 2008-2022','icon':icons.round,'color':'Blue'},
-    'vba1':{geoJson:'vba1_occs_2002-2007.geojson','file':'vba1_occs_2002-2007.json','description':'Butterfly Atlas 1','icon':icons.triangle,'color':'Cyan'},
-    'vba2':{geoJson:'vba2_occs_2023-2028.geojson','file':'vba2_occs_2023-2028.json','description':'Butterfly Atlas 2','icon':icons.diamond,'color':'Green'},
-    'test':{geoJson:'test.geojson','file':'test.json','description':'test dataset','icon':icons.square,'color':'Red'}
+    'vtb1':{geoJson:'vtb1_occs_1000-2001.geojson','json':'vtb1_occs_1000-2001.json','description':'Obs 1000-2001','icon':icons.square,'color':'Red'},
+    'vtb2':{geoJson:'vtb2_occs_2008-2022.geojson','json':'vtb2_occs_2008-2022.json','description':'Obs 2008-2022','icon':icons.round,'color':'Blue'},
+    'vba1':{geoJson:'vba1_occs_2002-2007.geojson','json':'vba1_occs_2002-2007.json','description':'Butterfly Atlas 1','icon':icons.triangle,'color':'Cyan'},
+    'vba2':{geoJson:'vba2_occs_2023-2028.geojson','json':'vba2_occs_2023-2028.json','description':'Butterfly Atlas 2','icon':icons.diamond,'color':'Green'},
+    'test':{geoJson:'test.geojson','json':'test.json','description':'test dataset','icon':icons.square,'color':'Red'}
 };
 export async function getOccsByDatasetAndWKT(dataset='vba1', geoWKT='') {
     return await getOccsByFilters(0, 300, datasetKeys[dataset], geoWKT);
@@ -57,8 +57,8 @@ console.log(`getOccsByFilters(${offset}, ${limit}, ${datasetKey}, ${geometryWKT}
 export async function getOccsFromFile(dataset='vba1') {
     let parr = window.location.pathname.split('/'); delete parr[parr.length-1];
     let path = parr.join('/');
-    console.log(`getOccsFromFile:`, `${window.location.protocol}//${window.location.host}/${path}${occData[dataset].file}`);
-    return fetchJsonFile('occjson/' + occData[dataset].file);
+    console.log(`getOccsFromFile:`, `${window.location.protocol}//${window.location.host}/${path}${occData[dataset].json}`);
+    return fetchJsonFile('occjson/' + occData[dataset].json);
 }
 
 /*
@@ -82,3 +82,21 @@ https://www.gbif.org/occurrence/search
 &state_province=Vermont&has_coordinate=false
 &year=1000,2002
 */
+//https://api.gbif.org/v1/dataset/df2a8206-84e9-4530-8a0d-b60f687dba0b
+export async function getGbifDataset(datasetKey) {
+    let reqHost = gbifApi;
+    let reqRoute = `/dataset/${datasetKey}`;
+    let url = reqHost+reqRoute;
+    let enc = encodeURI(url);
+    try {
+        let res = await fetch(enc);
+        let json = await res.json();
+        console.log(`getGbifDataset(${datasetKey}) RESULT:`, json);
+        json.query = enc;
+        return json;
+    } catch (err) {
+        err.query = enc;
+        console.log(`getGbifDataset(${datasetKey}) ERROR:`, err);
+        return new Error(err)
+    }
+}
