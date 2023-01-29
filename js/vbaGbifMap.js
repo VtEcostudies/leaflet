@@ -643,7 +643,7 @@ async function occurrencePopupInfo(occRecord) {
         try {
           //1. If no vernacularName in GBIF record, attempt to use VAL Google Sheet vernacularNames
           console.log(`occurrencePopupInfo | GBIF vernacularName:`, occRecord.vernacularName, '| taxonKey:', occRecord.taxonKey, '| VAL vernacularNames:', vernacularNames[occRecord.taxonKey]);
-          if (!occRecord.vernacularName) {
+          if (!occRecord.vernacularName && vernacularNames[occRecord.taxonKey]) {
             info += `Common Name: ${vernacularNames[occRecord.taxonKey] ? vernacularNames[occRecord.taxonKey][0].vernacularName : ''}<br/>`
           }
           //2. If no datasetName but yes datasetKey, call GBIF API for datasetName
