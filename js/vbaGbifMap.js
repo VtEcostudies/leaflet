@@ -651,7 +651,7 @@ async function occurrencePopupInfo(occRecord) {
           if (canName) {
             let wik = await getWikiPage(canName);
             if (wik.thumbnail) {
-              info += `<a href="${wik.originalimage.source}"><img src="${wik.thumbnail.source}" width="50" height="50"><br/></a>`;
+              info += `<a target="_blank" href="${wik.originalimage.source}"><img src="${wik.thumbnail.source}" width="50" height="50"><br/></a>`;
             }
           }
         } catch(err) {
