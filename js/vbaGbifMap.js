@@ -6,8 +6,8 @@
 */
 import { occData, getOccsByFilters, getOccsFromFile, getGbifDataset, icons } from './fetchGbifOccs.js';
 import { fetchJsonFile } from './commonUtilities.js';
-import { getSignups, fetchGoogleSheetData } from './fetchGoogleSheetsData.js';
-import { getWikiPage } from './wiki_page_data.js'
+import { signUps, getSignups, vernacularNames, getVernaculars } from './fetchGoogleSheetsData.js';
+import { getWikiPage } from './wiki_page_data.js';
 
 var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
 var vtAltCtr = [43.858297, -72.446594]; //VT border center for the speciespage view, where px bounds are small and map is zoomed to fit
@@ -36,7 +36,7 @@ var geoJsonData = true;
 var bindPopups = false;
 var bindToolTips = false;
 var iconMarkers = false;
-var signUps = []; //array of survey blocks that have been signed up
+//var signUps = []; //array of survey blocks that have been signed up
 var signupStyle = {
   color: "black",
   weight: 1,
@@ -524,6 +524,7 @@ async function addOccsToMap(occJsonArr=[], groupField='datasetKey', groupIcon, g
         if (occJson.recordedBy) marker.options.recordedBy = occJson.recordedBy;
         if (occJson.datasetName) marker.options.datasetName = occJson.datasetName;
         if (occJson.datasetKey) marker.options.datasetKey = occJson.datasetKey;
+        if (occJson.taxonKey) marker.options.taxonKey = occJson.taxonKey;
         marker.options.canonicalName = canName ? canName : occJson.scientificName;
         marker.on('click', markerOnClick);
       }
@@ -640,11 +641,18 @@ async function occurrencePopupInfo(occRecord) {
             }
         });
         try {
+          //1. If no vernacularName in GBIF record, attempt to use VAL Google Sheet vernacularNames
+          console.log(`occurrencePopupInfo | GBIF vernacularName:`, occRecord.vernacularName, '| taxonKey:', occRecord.taxonKey, '| VAL vernacularNames:', vernacularNames[occRecord.taxonKey]);
+          if (!occRecord.vernacularName) {
+            info += `Common Name: ${vernacularNames[occRecord.taxonKey] ? vernacularNames[occRecord.taxonKey][0].vernacularName : ''}<br/>`
+          }
+          //2. If no datasetName but yes datasetKey, call GBIF API for datasetName
           if (occRecord.datasetKey && !occRecord.datasetName) {
             let dst = await getGbifDataset(occRecord.datasetKey);
             info += `Dataset: <a href="https://gbif.org/dataset/${occRecord.datasetKey}">${dst.title}<br/></a>`;
           }
-          console.log(`occurrencePopupInfo | canonicalName:`, occRecord.canonicalName, 'taxonRank:', occRecord.taxonRank);
+          //3. If no canonicalName parse canonicalName and call Wikipedida API
+          console.log(`occurrencePopupInfo | canonicalName:`, occRecord.canonicalName, '| taxonRank:', occRecord.taxonRank);
           let canName = false;
           if (occRecord.canonicalName) {canName = occRecord.canonicalName;}
           else if (occRecord.taxonRank) {canName = parseCanonicalFromScientific(occRecord);}
@@ -695,10 +703,14 @@ if (document.getElementById("valSurveyBlocksEAME")) {
   initGbifStandalone(layerPath, layerName, 8);
 }
 
+/*
+  Calling getSignups is now deprecated in favor of file-scope variables and calls for data.
+  All we need to do now is to call puSignups. 
+*/
 async function getSurveyBlockData() {
   //get an array of signups by blockname with name and date
-  signUps = await getSignups();
-  console.log('getSurveyBlockData', signUps);
+  //signUps = await getSignups();
+  //console.log('getSurveyBlockData', signUps);
   putSignups(signUps);
 }
 
