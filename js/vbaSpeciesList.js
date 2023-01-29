@@ -1,6 +1,7 @@
 import { getOccsByFilters } from './fetchGbifOccs.js';
 import { getWikiPage } from './wiki_page_data.js'
 import { parseCanonicalFromScientific } from './commonUtilities.js';
+import { getVernaculars } from './fetchGoogleSheetsData.js';
 
 const objUrlParams = new URLSearchParams(window.location.search);
 const geometry = objUrlParams.get('geometry');
@@ -8,6 +9,7 @@ const dataset = objUrlParams.get('dataset');
 const block = objUrlParams.get('block');
 const taxonKeyA = objUrlParams.getAll('taxonKey');
 const butterflyKeys = 'taxon_key=6953&taxon_key=5473&taxon_key=7017&taxon_key=9417&taxon_key=5481&taxon_key=1933999';
+var vernaculars = [];
 console.log('Query Param(s) taxonKeys:', taxonKeyA);
 
 const other = ''; var objOther = {};
@@ -46,6 +48,7 @@ async function getBlockSpeciesList(block='block_name', dataset=false, gWkt=false
             if (arrOccs[i].eventDate > objSpcs[canName].eventDate) {
                 console.log('getOccsByFilters FOUND MORE RECENT OBSERVATION for', sciName, arrOccs[i].eventDate, '>',objSpcs[canName].eventDate);
                 objSpcs[canName] = {
+                    'acceptedTaxonKey':  arrOccs[i].acceptedTaxonKey,
                     'scientificName': arrOccs[i].scientificName,
                     'taxonRank': arrOccs[i].taxonRank,
                     'vernacularName': arrOccs[i].vernacularName,
@@ -55,6 +58,7 @@ async function getBlockSpeciesList(block='block_name', dataset=false, gWkt=false
             }
       } else { //add new name
         objSpcs[canName] = {
+            'acceptedTaxonKey':  arrOccs[i].acceptedTaxonKey,
             'scientificName': arrOccs[i].scientificName,
             'taxonRank': arrOccs[i].taxonRank,
             'vernacularName': arrOccs[i].vernacularName,
@@ -65,7 +69,7 @@ async function getBlockSpeciesList(block='block_name', dataset=false, gWkt=false
     }
     return {
         'head': hedSpcs, 
-        cols:['Scientific Name','Taxon Rank','Common Name','Image','Last Observed'], 
+        cols:['Taxon Key','Scientific Name','Taxon Rank','Common Name','Image','Last Observed'], 
         'array': objSpcs, 
         'query': occs.query
     };
@@ -93,7 +97,7 @@ function addGBIFLink(geometry, taxonKeys) {
 }
   
 //put one row in the header for column names
-function addTableHead(headCols=['Scientific Name','Taxon Rank','Common Name','Image','Last Observed']) {
+function addTableHead(headCols=['Taxon Key','Scientific Name','Taxon Rank','Common Name','Image','Last Observed']) {
     let objHed = eleTbl.createTHead();
     let hedRow = objHed.insertRow(0);
     let colObj = hedRow.insertCell(0);
@@ -152,6 +156,12 @@ async function fillRow(spcKey, objSpc, objRow, rowIdx) {
             case 'eventDate':
                 colObj.innerHTML = val ? moment(val).format('YYYY-MM-DD') : '';
                 break;
+            case 'vernacularName':
+                colObj.innerHTML = val ? val : (vernaculars[objSpc.acceptedTaxonKey] ? vernaculars[objSpc.acceptedTaxonKey][0].vernacularName : '');
+                break;
+            case 'acceptedTaxonKey':
+                colObj.innerHTML = `<a title="Gbif Species Profile: ${val}" href="https://gbif.org/species/${val}">${val}</a>`;
+                break;
             default:
                 colObj.innerHTML = val ? val : '';
                 break;
@@ -169,6 +179,7 @@ eleLbl.innerHTML =
 if (block && geometry) {
     let taxonKeys;
     addTableWait();
+    vernaculars = await getVernaculars();
     if (!dataset && (!taxonKeyA.length)) {taxonKeys = butterflyKeys}
     let spcs = await getBlockSpeciesList(block, dataset, geometry, taxonKeys);
     addGBIFLink(geometry, taxonKeys);
@@ -179,3 +190,4 @@ if (block && geometry) {
 } else {
     alert(`Must call with at least the query parameters 'block' and 'geometry'. Alternatively pass a dataset (like 'vba1') or one or more eg. 'taxon_key=1234'.`)
 }
+

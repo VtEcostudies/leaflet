@@ -236,7 +236,9 @@ function onGeoBoundaryFeature(feature, layer) {
         }
         gWkt = gWkt.slice(0,-1) + '))';
         //console.log('WKT Geometry:', gWkt);
-        pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get <b>BLOCK MAP</b> for ${name}</a></br></br> `;
+        if (feature.properties.BLOCK_TYPE=='PRIORITY') {
+          pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get <b>BLOCK MAP</b> for ${name}</a></br></br> `;
+        }
         if (signUps[link]) {  
           pops += `Survey block was chosen by <b>${signUps[link].first} ${signUps[link].last}</b> on ${signUps[link].date}</br></br>`;
         } else {
