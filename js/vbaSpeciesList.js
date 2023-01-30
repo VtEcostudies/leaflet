@@ -84,12 +84,12 @@ async function addTableWait() {
     waitObj.innerHTML = `<i class="fa fa-spinner fa-spin" style="font-size:60px;"></i>`;
 }
 
-function delTableWait() {
+async function delTableWait() {
     waitObj.remove();
     waitRow.remove();
 }
 
-function addGBIFLink(geometry, taxonKeys) {
+async function addGBIFLink(geometry, taxonKeys) {
     let eleGBIF = document.getElementById("gbifLink");
     eleGBIF.href = `https://www.gbif.org/occurrence/search?${taxonKeys}&geometry=${geometry}`;
     eleGBIF.target = "_blank";
@@ -97,13 +97,13 @@ function addGBIFLink(geometry, taxonKeys) {
 }
   
 //put one row in the header for column names
-function addTableHead(headCols=['Taxon Key','Scientific Name','Taxon Rank','Common Name','Image','Last Observed']) {
+async function addTableHead(headCols=['Taxon Key','Scientific Name','Taxon Rank','Common Name','Image','Last Observed']) {
     let objHed = eleTbl.createTHead();
     let hedRow = objHed.insertRow(0);
-    let colObj = hedRow.insertCell(0);
+    let colObj;
     for (var i=0; i<headCols.length; i++) {
         colObj = hedRow.insertCell(i);
-        colObj.innerHTML = headCols[i];
+        colObj.innerText = headCols[i];
     }
 }
   
@@ -113,7 +113,7 @@ async function addTaxaFromArr(objArr) {
     let rowIdx=0;
     for (const [spcKey, objSpc] of Object.entries(objArr)) {
         //console.log(objSpc, rowIdx)
-        let objRow = eleTbl.insertRow(rowIdx);
+        let objRow = await eleTbl.insertRow(rowIdx);
         await fillRow(spcKey, objSpc, objRow, rowIdx++);
     }
   }
@@ -129,26 +129,23 @@ async function fillRow(spcKey, objSpc, objRow, rowIdx) {
         switch(key) {
             case 'image': case 'Image':
                 colObj.innerHTML = `<i class="fa fa-spinner fa-spin" style="font-size:18px"></i>`;
-                try {
-                  let wik = await getWikiPage(spcKey);
-                  colObj.innerHTML = '';
-                  if (wik.thumbnail) {
-                    let iconImg = document.createElement("img");
-                    iconImg.src = wik.thumbnail.source;
-                    iconImg.alt = spcKey;
-                    iconImg.className = "icon-image";
-                    iconImg.width = "30"; 
-                    iconImg.height = "30";
-                    let hrefImg = document.createElement("a");
-                    hrefImg.href = wik.originalimage.source;
-                    hrefImg.target = "_blank";
-                    colObj.appendChild(hrefImg);
-                    hrefImg.appendChild(iconImg);
-                  }
-                } catch(err) {
-                    colObj.innerHTML = '';
-                    console.log(`getWikiPage(${spcKey}) ERROR:`, err);
-                }
+                let wik = getWikiPage(spcKey);
+                colObj.innerHTML = '';
+                wik.then(wik => {
+                    if (wik.thumbnail) {
+                        let iconImg = document.createElement("img");
+                        iconImg.src = wik.thumbnail.source;
+                        iconImg.alt = spcKey;
+                        iconImg.className = "icon-image";
+                        iconImg.width = "30"; 
+                        iconImg.height = "30";
+                        let hrefImg = document.createElement("a");
+                        hrefImg.href = wik.originalimage.source;
+                        hrefImg.target = "_blank";
+                        colObj.appendChild(hrefImg);
+                        hrefImg.appendChild(iconImg);
+                    }
+                })
                 break;
             case 'scientificName':
                 colObj.innerHTML = `<a title="Wikipedia: ${spcKey}" href="https://en.wikipedia.org/wiki/${spcKey}">${val}</a>`;
@@ -182,12 +179,22 @@ if (block && geometry) {
     vernaculars = await getVernaculars();
     if (!dataset && (!taxonKeyA.length)) {taxonKeys = butterflyKeys}
     let spcs = await getBlockSpeciesList(block, dataset, geometry, taxonKeys);
-    addGBIFLink(geometry, taxonKeys);
-    addTaxaFromArr(spcs.array);
-    addTableHead(spcs.cols);
-    setLabelText(block, dataset, taxonKeys, Object.keys(spcs.array).length);
+    await addGBIFLink(geometry, taxonKeys);
+    await addTaxaFromArr(spcs.array);
+    await addTableHead(spcs.cols);
+    await setLabelText(block, dataset, taxonKeys, Object.keys(spcs.array).length);
     delTableWait();
 } else {
     alert(`Must call with at least the query parameters 'block' and 'geometry'. Alternatively pass a dataset (like 'vba1') or one or more eg. 'taxon_key=1234'.`)
 }
 
+async function setDataTable() {
+    for (var i=0; i<eleTbl.rows.length; i++) {
+        console.log(`TABLE ROW ${i} COLUMN COUNT:`, eleTbl.rows[i].cells.length)
+    }
+    $('#speciesListTable').DataTable();
+}
+
+$('#speciesListTable').ready(function () {
+    setDataTable()
+});

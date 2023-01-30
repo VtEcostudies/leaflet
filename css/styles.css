@@ -101,9 +101,16 @@ html, body, #mapid, .row-fluid{
   color: blue;
 }
 
+#speciesListTitle {
+  text-align: center;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
 #speciesListLabel {
   display: inline;
   margin-left: 10px;
+  text-decoration: underline;
 }
 
 #gbifLink {
