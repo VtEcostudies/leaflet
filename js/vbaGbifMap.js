@@ -125,7 +125,7 @@ function MapOverlayAdd(e) {
   //console.log('MapOverlayAdd', e.layer.options.name);
   if (typeof e.layer.bringToBack === 'function') {e.layer.bringToBack();} //push the just-added layer to back
   geoGroup.eachLayer(layer => {
-    //console.log('geoGroup', layer.options.name);
+    console.log(`MapOverlayAdd found GeoJson layer:`, layer.options.name);
     if (layer.options.name != e.layer.options.name) {
       layer.bringToBack(); //push other overlays to back
     }
@@ -139,17 +139,12 @@ function onZoomEnd(e) {
 }
 
 async function zoomVT() {
-  let layer;
-  let layers = geoGroup._layers;
-  for (const[key, val] of Object.entries(layers)) {
-    if ('State'==val.options.name) {
-      layer = val;
+  geoGroup.eachLayer(layer => {
+    if ('State'==layer.options.name) {
+      console.log('zoomVT found GeoJson layer', layer.options.name);
+      valMap.fitBounds(layer.getBounds());
     }
-  }
-  if (layer) {
-    //console.log('zoomVT | State Layer Options:', layer.options, geoGroup);
-    await valMap.fitBounds(layer.getBounds());
-  }
+  })
 }
 
 /*
@@ -273,7 +268,7 @@ function onGeoBoundaryStyle(feature) {
     if (sheetSignUps[blockName]) {
       console.log(`onGeoBoundaryStyle | Found Block Signup for`, blockName);
       style = signupStyle;
-      }
+    }
     return style;
   } else {
     if (feature.properties.BIOPHYSRG1) { //biophysical regions
@@ -643,12 +638,9 @@ async function occurrencePopupInfo(occRecord) {
         });
         try {
           //1. Don't use vernacularName from GBIF record. Use VAL checklist data or VAL Google sheet vernacularNames
-          console.log(`occurrencePopupInfo | GBIF vernacularName:`, occRecord.vernacularName, '| taxonKey:', occRecord.taxonKey, '| VAL sheetVernacularNames:', sheetVernacularNames[occRecord.taxonKey]);
-/*
-          if (!occRecord.vernacularName && sheetVernacularNames[occRecord.taxonKey]) {
-            info += `Common Name: ${sheetVernacularNames[occRecord.taxonKey] ? sheetVernacularNames[occRecord.taxonKey][0].vernacularName : ''}<br/>`
-          }
-*/
+          console.log(`occurrencePopupInfo | Occurrence vernacularName:`, occRecord.vernacularName, '| taxonKey:', occRecord.taxonKey);
+          console.log(`occurrencePopupInfo | Butterfly Checklist vernacularNames:`, checklistVernacularNames[occRecord.taxonKey]);
+          console.log(`occurrencePopupInfo | Google Sheet vernacularNames:`, sheetVernacularNames[occRecord.taxonKey]);
           if (checklistVernacularNames[occRecord.taxonKey]) {
             info += `Common Name: ${checklistVernacularNames[occRecord.taxonKey] ? checklistVernacularNames[occRecord.taxonKey][0].vernacularName : ''}<br/>`
           } else if (sheetVernacularNames[occRecord.taxonKey]) {
@@ -712,43 +704,38 @@ if (document.getElementById("valSurveyBlocksEAME")) {
 }
 
 /*
-  Calling getSignups is now deprecated in favor of file-scope variables and calls for data.
-  All we need to do now is to call puSignups. 
+  Deprecated in favor of file-scope variable 'sheetSignUps'
+  All we need to do now is to call putSignups. 
 */
 async function getSurveyBlockData() {
   //get an array of sheetSignUps by blockname with name and date
-  //sheetSignUps = await getSignups();
-  //console.log('getSurveyBlockData', sheetSignUps);
+  sheetSignUps = await getSignups();
+  console.log('getSurveyBlockData', sheetSignUps);
   putSignups(sheetSignUps);
 }
 
 function putSignups(sign) {
-  let layer;
-  let layers = geoGroup._layers;
-  for (const[key, val] of Object.entries(layers)) {
-    if ('Survey Blocks'==val.options.name) {
-      layer = val;
+  geoGroup.eachLayer(layer => {
+    console.log(`putSignups found GeoJson layer:`, layer.options.name);
+    if ('Survey Blocks'==layer.options.name) {
+      layer.eachLayer(subLay => {
+        let blockName = subLay.feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
+        if (sign[blockName]) {
+          console.log(`putSignups found block signup for`, blockName);
+          subLay.setStyle(signupStyle)
+        }
+      })
     }
-  }
-  if (layer) {
-    //console.log('putSignups', layer);
-    layer.eachLayer(function(subLay) {
-      let blockName = subLay.feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
-      if (sign[blockName]) {
-        console.log(`putSignups found block signup for`, blockName);
-        subLay.setStyle(signupStyle)
-      }
-    })
-  } else {
-    console.log(`putSignups | layer named 'Survey Blocks' not found.`)
-  }
+  })
 }
 
 if (document.getElementById("valSurveyBlocksVBA")) {
   let layerPath = 'geojson/surveyblocksWGS84_orig.geojson';
   let layerName = 'Survey Blocks';
-  initGbifStandalone(layerPath, layerName, 9);
-  getSurveyBlockData();
+  let layerId = 9;
+  initGbifStandalone(layerPath, layerName, layerId);
+  //getSurveyBlockData();
+  putSignups(sheetSignUps);
 }
 
 async function getLiveData(dataset='vba2') {
@@ -917,6 +904,8 @@ if (document.getElementById("abortData")) {
 }
 if (document.getElementById("test")) {
   document.getElementById("test").addEventListener("click", () => {
-    getSurveyBlockData();
+    //getSurveyBlockData();
+    console.log("test button click.");
+    putSignups(sheetSignUps);
   });
 }
