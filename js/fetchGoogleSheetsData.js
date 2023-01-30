@@ -5,8 +5,8 @@ let defaultSheetIds = {
     "vernacular": '17_e15RB8GgpMVZgvwkFHV8Y9ZgLRXg5Swow49wZsAyQ'
 }
 
-export var signUps; //store signUps at file scope
-export var vernacularNames; //store vernacularNames for multi-use
+export var sheetSignUps; //store sheetSignUps at file scope
+export var sheetVernacularNames; //store sheetVernacularNames for multi-use
 
 /*
     Fetch a single Google sheet's data by sheet ID and ordinal sheet number.
@@ -34,10 +34,10 @@ export async function fetchGoogleSheetData(spreadsheetId=defaultSheetIds.signUps
     }
 }
 
-export async function getSignups(sheetNumber=0) {
+export async function getSheetSignups(sheetNumber=0) {
     try {
         let res = await fetchGoogleSheetData(defaultSheetIds.signUps, sheetNumber);
-        //console.log('getSignups RESULT:', res);
+        //console.log('getSheetSignups RESULT:', res);
         if (res.status > 299) {return res;}
         let sign = [];
         res.rows.forEach(row => {
@@ -49,18 +49,18 @@ export async function getSignups(sheetNumber=0) {
                 }
             }
     })
-    console.log('getSignups 2D ARRAY', sign);
+    console.log('getSheetSignups 2D ARRAY', sign);
     return sign;
     } catch(err) {
-        console.log(`getSignups(${sheetNumber}) ERROR:`, err);
+        console.log(`getSheetSignups(${sheetNumber}) ERROR:`, err);
         return new Error(err)
     }
 }
 
-export async function getVernaculars(sheetNumber=0) {
+export async function getSheetVernaculars(sheetNumber=0) {
     try {
         let res = await fetchGoogleSheetData(defaultSheetIds.vernacular, sheetNumber);
-        //console.log('getVernaculars RESULT:', res);
+        //console.log('getSheetVernaculars RESULT:', res);
         if (res.status > 299) {return res;}
         let name = [];
         res.rows.forEach((row,rid) => {
@@ -91,13 +91,13 @@ export async function getVernaculars(sheetNumber=0) {
                 name[data.taxonId][0] = data;
             }
         })
-        //console.log('getVernaculars 2D ARRAY', name);
+        //console.log('getSheetVernaculars 2D ARRAY', name);
         return name;
     } catch(err) {
-        console.log(`getVernaculars(${sheetNumber}) ERROR:`, err);
+        console.log(`getSheetVernaculars(${sheetNumber}) ERROR:`, err);
         return new Error(err)
     }
 }
 
-signUps = await getSignups();
-vernacularNames = await getVernaculars();
+sheetSignUps = await getSheetSignups();
+sheetVernacularNames = await getSheetVernaculars();

@@ -1,7 +1,7 @@
 import { fetchJsonFile } from "./commonUtilities.js";
 
 let gbifApi = "https://api.gbif.org/v1";
-let datasetKeys = {vba1:"0901cecf-55f1-447e-8537-1f7b63a865a0", chkVba1:"73eb16f0-4b06-4347-8069-459bc2d96ddb"};
+let datasetKeys = {"vba1":"0901cecf-55f1-447e-8537-1f7b63a865a0"};
 let butterflies = "taxon_key=6953&taxon_key=5473&taxon_key=7017&taxon_key=9417&taxon_key=5481&taxon_key=1933999";
 export var icons = {
     round: L.divIcon({className: 'round'}),
@@ -42,9 +42,9 @@ console.log(`getOccsByFilters(${offset}, ${limit}, ${datasetKey}, ${geometryWKT}
 
     try {
         let res = await fetch(enc);
+        //console.log(`getOccsByFilters(${offset}, ${limit}, ${datasetKey}, ${geometryWKT}, ${gadmGid}) RAW RESULT:`, res);
         let json = await res.json();
-        //console.log(`getOccsByFilters(${offset}, ${limit}, ${datasetKey}, ${geometryWKT}, ${gadmGid}) QUERY:`, enc);
-        console.log(`getOccsByFilters(${offset}, ${limit}, ${datasetKey}, ${geometryWKT}, ${gadmGid}) RESULT:`, json);
+        //console.log(`getOccsByFilters(${offset}, ${limit}, ${datasetKey}, ${geometryWKT}, ${gadmGid}) JSON RESULT:`, json);
         json.query = enc;
         return json;
     } catch (err) {
@@ -82,21 +82,25 @@ https://www.gbif.org/occurrence/search
 &state_province=Vermont&has_coordinate=false
 &year=1000,2002
 */
-//https://api.gbif.org/v1/dataset/df2a8206-84e9-4530-8a0d-b60f687dba0b
-export async function getGbifDataset(datasetKey) {
+
+/*
+    https://api.gbif.org/v1/dataset/df2a8206-84e9-4530-8a0d-b60f687dba0b
+*/
+export async function getGbifDatasetInfo(datasetKey) {
     let reqHost = gbifApi;
     let reqRoute = `/dataset/${datasetKey}`;
     let url = reqHost+reqRoute;
     let enc = encodeURI(url);
     try {
         let res = await fetch(enc);
+        //console.log(`getGbifDatasetInfo(${datasetKey}) RAW RESULT:`, res);
         let json = await res.json();
-        console.log(`getGbifDataset(${datasetKey}) RESULT:`, json);
+        //console.log(`getGbifDatasetInfo(${datasetKey}) JSON RESULT:`, json);
         json.query = enc;
         return json;
     } catch (err) {
         err.query = enc;
-        console.log(`getGbifDataset(${datasetKey}) ERROR:`, err);
+        console.log(`getGbifDatasetInfo(${datasetKey}) ERROR:`, err);
         return new Error(err)
     }
 }

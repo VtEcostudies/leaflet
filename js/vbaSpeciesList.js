@@ -1,7 +1,8 @@
 import { getOccsByFilters } from './fetchGbifOccs.js';
 import { getWikiPage } from './wiki_page_data.js'
 import { parseCanonicalFromScientific } from './commonUtilities.js';
-import { getVernaculars } from './fetchGoogleSheetsData.js';
+import { sheetVernacularNames } from './fetchGoogleSheetsData.js';
+import { checklistVernacularNames } from './fetchGbifSpecies.js';
 
 const objUrlParams = new URLSearchParams(window.location.search);
 const geometry = objUrlParams.get('geometry');
@@ -9,7 +10,7 @@ const dataset = objUrlParams.get('dataset');
 const block = objUrlParams.get('block');
 const taxonKeyA = objUrlParams.getAll('taxonKey');
 const butterflyKeys = 'taxon_key=6953&taxon_key=5473&taxon_key=7017&taxon_key=9417&taxon_key=5481&taxon_key=1933999';
-var vernaculars = [];
+//var vernaculars = [];
 console.log('Query Param(s) taxonKeys:', taxonKeyA);
 
 const other = ''; var objOther = {};
@@ -153,8 +154,11 @@ async function fillRow(spcKey, objSpc, objRow, rowIdx) {
             case 'eventDate':
                 colObj.innerHTML = val ? moment(val).format('YYYY-MM-DD') : '';
                 break;
-            case 'vernacularName':
-                colObj.innerHTML = val ? val : (vernaculars[objSpc.acceptedTaxonKey] ? vernaculars[objSpc.acceptedTaxonKey][0].vernacularName : '');
+            case 'vernacularName': //don't use GBIF occurrence value for vernacularName, use VAL checklist or VAL google sheet
+                let key = objSpc.acceptedTaxonKey;
+                //colObj.innerHTML = val ? val : (checklistVernacularNames[key] ? checklistVernacularNames[key][0].vernacularName : '');
+                //colObj.innerHTML = val ? val : (sheetVernacularNames[key] ? sheetVernacularNames[key][0].vernacularName : '');
+                colObj.innerHTML = checklistVernacularNames[key] ? checklistVernacularNames[key][0].vernacularName : (sheetVernacularNames[key] ? sheetVernacularNames[key][0].vernacularName : '');
                 break;
             case 'acceptedTaxonKey':
                 colObj.innerHTML = `<a title="Gbif Species Profile: ${val}" href="https://gbif.org/species/${val}">${val}</a>`;
@@ -176,7 +180,7 @@ eleLbl.innerHTML =
 if (block && geometry) {
     let taxonKeys;
     addTableWait();
-    vernaculars = await getVernaculars();
+    //vernaculars = await getVernaculars();
     if (!dataset && (!taxonKeyA.length)) {taxonKeys = butterflyKeys}
     let spcs = await getBlockSpeciesList(block, dataset, geometry, taxonKeys);
     await addGBIFLink(geometry, taxonKeys);
@@ -189,9 +193,11 @@ if (block && geometry) {
 }
 
 async function setDataTable() {
+/*
     for (var i=0; i<eleTbl.rows.length; i++) {
         console.log(`TABLE ROW ${i} COLUMN COUNT:`, eleTbl.rows[i].cells.length)
     }
+*/
     $('#speciesListTable').DataTable();
 }
 

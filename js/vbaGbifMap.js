@@ -4,9 +4,10 @@
 - How to pass parameters to a google form: https://support.google.com/a/users/answer/9308781?hl=en
 - How to implement geojson-vt with Leaflet: https://stackoverflow.com/questions/41223239/how-to-improve-performance-on-inserting-a-lot-of-features-into-a-map-with-leafle
 */
-import { occData, getOccsByFilters, getOccsFromFile, getGbifDataset, icons } from './fetchGbifOccs.js';
+import { occData, getOccsByFilters, getOccsFromFile, getGbifDatasetInfo, icons } from './fetchGbifOccs.js';
 import { fetchJsonFile } from './commonUtilities.js';
-import { signUps, getSignups, vernacularNames, getVernaculars } from './fetchGoogleSheetsData.js';
+import { sheetSignUps, sheetVernacularNames } from './fetchGoogleSheetsData.js';
+import { checklistVernacularNames } from './fetchGbifSpecies.js';
 import { getWikiPage } from './wiki_page_data.js';
 
 var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
@@ -36,7 +37,7 @@ var geoJsonData = true;
 var bindPopups = false;
 var bindToolTips = false;
 var iconMarkers = false;
-//var signUps = []; //array of survey blocks that have been signed up
+//var sheetSignUps = []; //array of survey blocks that have been signed up
 var signupStyle = {
   color: "black",
   weight: 1,
@@ -239,8 +240,8 @@ function onGeoBoundaryFeature(feature, layer) {
         if (feature.properties.BLOCK_TYPE=='PRIORITY') {
           pops += `<a target="_blank" href="https://s3.us-west-2.amazonaws.com/val.surveyblocks/${link}.pdf">Get <b>BLOCK MAP</b> for ${name}</a></br></br> `;
         }
-        if (signUps[link]) {  
-          pops += `Survey block was chosen by <b>${signUps[link].first} ${signUps[link].last}</b> on ${signUps[link].date}</br></br>`;
+        if (sheetSignUps[link]) {  
+          pops += `Survey block was chosen by <b>${sheetSignUps[link].first} ${sheetSignUps[link].last}</b> on ${sheetSignUps[link].date}</br></br>`;
         } else {
           pops += `<a target="_blank" href="https://docs.google.com/forms/d/e/1FAIpQLSegdid40-VdB_xtGvHt-WIEWR_TapHnbaxj-LJWObcWrS5ovg/viewform?usp=pp_url&entry.1143709545=${link}"><b>SIGN-UP</b> for ${name}</a></br></br>`;
         }
@@ -269,7 +270,7 @@ function onGeoBoundaryStyle(feature) {
     }
     //Check the signup array to see if block was chosen
     let blockName = feature.properties.BLOCKNAME.replace(/( - )|\s+/g,'').toLowerCase();
-    if (signUps[blockName]) {
+    if (sheetSignUps[blockName]) {
       console.log(`onGeoBoundaryStyle | Found Block Signup for`, blockName);
       style = signupStyle;
       }
@@ -617,7 +618,7 @@ async function occurrencePopupInfo(occRecord) {
                 info += `Scientific Name: ${occRecord[key]}<br/>`;
                 break;
             case 'vernacularName':
-              info += `Common Name: ${occRecord[key]}<br/>`;
+              //info += `Common Name: ${occRecord[key]}<br/>`; //don't use GBIF occurrence vernacularName. see below.
               break;
             case 'collector':
               info += `Collector: ${occRecord[key]}<br/>`;
@@ -641,14 +642,21 @@ async function occurrencePopupInfo(occRecord) {
             }
         });
         try {
-          //1. If no vernacularName in GBIF record, attempt to use VAL Google Sheet vernacularNames
-          console.log(`occurrencePopupInfo | GBIF vernacularName:`, occRecord.vernacularName, '| taxonKey:', occRecord.taxonKey, '| VAL vernacularNames:', vernacularNames[occRecord.taxonKey]);
-          if (!occRecord.vernacularName && vernacularNames[occRecord.taxonKey]) {
-            info += `Common Name: ${vernacularNames[occRecord.taxonKey] ? vernacularNames[occRecord.taxonKey][0].vernacularName : ''}<br/>`
+          //1. Don't use vernacularName from GBIF record. Use VAL checklist data or VAL Google sheet vernacularNames
+          console.log(`occurrencePopupInfo | GBIF vernacularName:`, occRecord.vernacularName, '| taxonKey:', occRecord.taxonKey, '| VAL sheetVernacularNames:', sheetVernacularNames[occRecord.taxonKey]);
+/*
+          if (!occRecord.vernacularName && sheetVernacularNames[occRecord.taxonKey]) {
+            info += `Common Name: ${sheetVernacularNames[occRecord.taxonKey] ? sheetVernacularNames[occRecord.taxonKey][0].vernacularName : ''}<br/>`
+          }
+*/
+          if (checklistVernacularNames[occRecord.taxonKey]) {
+            info += `Common Name: ${checklistVernacularNames[occRecord.taxonKey] ? checklistVernacularNames[occRecord.taxonKey][0].vernacularName : ''}<br/>`
+          } else if (sheetVernacularNames[occRecord.taxonKey]) {
+            info += `Common Name: ${sheetVernacularNames[occRecord.taxonKey] ? sheetVernacularNames[occRecord.taxonKey][0].vernacularName : ''}<br/>`
           }
           //2. If no datasetName but yes datasetKey, call GBIF API for datasetName
           if (occRecord.datasetKey && !occRecord.datasetName) {
-            let dst = await getGbifDataset(occRecord.datasetKey);
+            let dst = await getGbifDatasetInfo(occRecord.datasetKey);
             info += `Dataset: <a href="https://gbif.org/dataset/${occRecord.datasetKey}">${dst.title}<br/></a>`;
           }
           //3. If no canonicalName parse canonicalName and call Wikipedida API
@@ -708,10 +716,10 @@ if (document.getElementById("valSurveyBlocksEAME")) {
   All we need to do now is to call puSignups. 
 */
 async function getSurveyBlockData() {
-  //get an array of signups by blockname with name and date
-  //signUps = await getSignups();
-  //console.log('getSurveyBlockData', signUps);
-  putSignups(signUps);
+  //get an array of sheetSignUps by blockname with name and date
+  //sheetSignUps = await getSignups();
+  //console.log('getSurveyBlockData', sheetSignUps);
+  putSignups(sheetSignUps);
 }
 
 function putSignups(sign) {
