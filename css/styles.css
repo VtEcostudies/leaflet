@@ -133,15 +133,11 @@
 }
 
 .triangle-shape {
-	width: 0;
-	height: 0;
-  /*background-color: cyan; this makes a square*/
-  /*border-color: cyan; this doesn't work*/
-	border-left: 20px solid transparent;
-	border-right: 20px solid transparent;
-	border-bottom: 30px solid cyan;
-  text-align: left;
-  align-content: baseline;
+  -webkit-clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  /*background: red; remove this to override with color class*/
+  width: 100px;
+  height: 100px;
 }
 .triangle-count {
   width: 30px;
@@ -150,9 +146,30 @@
   text-align: center;
   font-size: 12px;
   font-weight: bold;
+  transform: translate(0px, 15px) /* translate(right, down) */
+}
+
+.triangle-shape-old {
+	width: 0;
+	height: 0;
+  /*background-color: cyan; this makes a square*/
+  /*border-color: cyan; this doesn't work*/
+	border-left: 20px solid transparent;
+	border-right: 20px solid transparent;
+	/*border-bottom: 30px solid cyan;*/
+  text-align: left;
+  align-content: baseline;
+}
+.triangle-count-old {
+  width: 30px;
+  height: 30px;
+  display: table-cell;
+  text-align: center;
+  font-size: 12px;
+  font-weight: bold;
   transform: translate(-10px, 15px)
 }
-.triangle-small {
+.triangle-small-old {
 	width: 0;
 	height: 0;
 	border-left: 8px solid transparent;
@@ -165,9 +182,9 @@
 .diamond-shape {
   /*background-color: blue;*/
   height: 30px;
+	width: 30px;
   text-align: center;
   transform: rotate(45deg);
-	width: 30px;
 }
 .diamond-count {
   /*color: yellow;*/

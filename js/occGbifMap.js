@@ -550,7 +550,7 @@ async function clusterOnClick(e) {
 
   let cluster = e.layer
   let bottomCluster = cluster;
-
+/*
   while (bottomCluster._childClusters.length === 1) {
     bottomCluster = bottomCluster._childClusters[0];
   }
@@ -564,7 +564,7 @@ async function clusterOnClick(e) {
   } else {
     //console.log(`clusterOnClick | Cluster will Zoom`);
   }
-
+*/
   if (cluster._group._spiderfied) {
     //console.log('clusterOnClick | Cluster IS Spiderfied. Unspiderfy.');
     cluster.unspiderfy();
@@ -580,7 +580,7 @@ async function clusterOnSpiderfied(e) {
     //console.log('child marker', idx, mark.options);
     let o = mark.options;
     if (o.noCoordinates) {
-      list += `NO COORDINATES - <a href="https://gbif.org/occurrence/${o.gbifID}">${o.gbifID}</a>: ${o.canonicalName}, ${moment(o.eventDate).format('YYYY-MM-DD')}, ${o.recordedBy ? o.recordedBy : 'Unknown'}<br>`;
+      list += `LOCATION ${o.noCoordinates} - <a href="https://gbif.org/occurrence/${o.gbifID}">${o.gbifID}</a>: ${o.canonicalName}, ${moment(o.eventDate).format('YYYY-MM-DD')}, ${o.recordedBy ? o.recordedBy : 'Unknown'}<br>`;
     } else {
       list += `<a href="https://gbif.org/occurrence/${o.gbifID}">${o.gbifID}</a>: ${o.canonicalName}, ${moment(o.eventDate).format('YYYY-MM-DD')}, ${o.recordedBy ? o.recordedBy : 'Unknown'}<br>`;
     }
@@ -603,19 +603,10 @@ function getClusterIconOptions(grpIcon, cluster, color=false, size=30) {
   let html;
   let name;
   let syze = L.point(size, size);
-  let styleRound = `
-  background-color: ${color};
-  border-radius: 50%;
-  border-color: black;
-  border-style: solid;
-  border-width: 2px;
-  margin-top: 15px;
-  `
+
   switch(grpIcon) {
     default:
     case 'round':
-      //html = `<span style="${styleRound};"><div class="cluster-count"> ${cluster ? cluster.getChildCount() : ''} </div></span>`;
-      //html = `<div style="background-color:${color};" class="blue cluster-count"> ${cluster ? cluster.getChildCount() : ''} </div>`;
       html = `<div class="cluster-count"> ${cluster ? cluster.getChildCount() : ''} </div>`;
       name = `${grpIcon}-shape`;
       if (color) name = `${name} bg-${color}`; //add bg-{color} as classname
@@ -626,19 +617,29 @@ function getClusterIconOptions(grpIcon, cluster, color=false, size=30) {
       if (color) name = `${name} bg-${color}`; //add bg-{color} as classname
       break;
     case 'triangle':
-      html = `<div class="triangle-count"> ${cluster ? cluster.getChildCount() : ''} </div>`;
-      name = cluster ? 'triangle-shape' : 'triangle-small';
+      //html = `<div class="triangle-count-old ${foreground(color)}"> ${cluster ? cluster.getChildCount() : ''} </div>`;
+      //name = cluster ? 'triangle-shape-old' : 'triangle-small-old';
+      //if (color) name = `${name} bb-${color}`; //add border-bottom-{color} as classname
+      html = `<div class="triangle-count ${foreground(color)}"> ${cluster ? cluster.getChildCount() : ''} </div>`;
+      name = 'triangle-shape';
+      if (color) name = `${name} bg-${color}`; //add bg-{color} as classname
       break;
     case 'diamond':
       html = `
         <div class="${cluster ? 'diamond-shape' : 'diamond-small'} bg-${color}">
           <div class="diamond-count ${foreground(color)}">${cluster ? cluster.getChildCount() : ''}</div>
         </div>`;
-      //html = `<div class="diamond-count">${cluster ? cluster.getChildCount() : ''}</div>`;
-      //name = cluster ? 'diamond-shape' : 'diamond-small';
-      //if (color) name = `${name} bg-${color}`; //add bg-{color} as classname
+      //no className for diamond, styling is in html, above
       break;
-  }
+    case 'star':
+      html = `
+        <div class="${cluster ? 'diamond-shape' : 'diamond-small'} bg-${color}">
+          <div class="diamond-count ${foreground(color)}">${cluster ? cluster.getChildCount() : ''}</div>
+        </div>`;
+      name = 'diamond-shape'; //this creates a non-rotated square
+      if (color) name = `${name} bg-${color}`; //add bg-{color} as classname
+      break;
+    }
   //console.log(`getClusterIconOptions | divIcon html:`, html)
   //return {'html':html, 'className':name, 'iconSize':syze, 'iconAnchor':[size, size]}
   return {'html':html, 'className':name, 'iconSize':syze}
@@ -654,6 +655,14 @@ function foreground(color) {
   }
 }
 
+function getCentroid(what, whom) {
+  if ('county' == what) {
+    return L.latLng(43.5, -71.5);
+  }
+  if ('town' == what) {
+    return L.latLng(43.0, -71.5);
+  }
+}
 /*
   This now automatically breaks taxa into sub-taxa. To disable this feature, set the global flag
 
@@ -664,6 +673,7 @@ async function updateMap(occJsonArr, taxonName) {
     var idSciName = null;
     var canName = null;
     var grpIcon = cgShape[taxonName] ? cgShape[taxonName] : 'round'; //MUST be one of round, square, triangle, diamond
+    var altLoc = false;
 
     for (var i = 0; i < occJsonArr.length; i++) {
         var occJson = occJsonArr[i];
@@ -672,12 +682,21 @@ async function updateMap(occJsonArr, taxonName) {
         if (!occJson.decimalLatitude || !occJson.decimalLongitude) {
             if (typeof cmCount['missing'] === 'undefined') {cmCount['missing'] = 0;}
             cmCount['missing']++;
-            console.log('WARNING: Occurrence Record without Lat/Lon values:', occJson.key, 'missing:', cmCount['missing'], 'count:', cmCount['all']);
+            console.log('WARNING: Occurrence Record without Lat/Lon values:', occJson.key, 'missing:', cmCount['missing'], 'count:', cmCount['all'], occJson.town, occJson.county);
             //continue;
-            occJson.decimalLatitude = 44.0;
-            occJson.decimalLongitude = -71.5;
             occJson.noCoordinates = true;
-            //grpIcon = 'triangle';
+            if (occJson.town) {
+              console.log(`Location by TOWN`, occJson.town);
+              altLoc = getCentroid('town', occJson.town);
+              occJson.noCoordinates = `${occJson.town} Town`;
+            } else if (occJson.county) {
+              console.log(`Location by COUNTY`, occJson.county);
+              altLoc = getCentroid('county', occJson.county);
+              occJson.noCoordinates = `${occJson.county} County`;
+            } else {
+              altLoc =  L.latLng(44.0, -71.5);
+              occJson.noCoordinates = 'None';
+            }
         }
 
         if (taxaBreakout) {
@@ -685,26 +704,27 @@ async function updateMap(occJsonArr, taxonName) {
           canName = parseCanonicalFromScientific(occJson);
           if (canName) {sciName = canName;}
           if (typeof cgColor[sciName] === 'undefined') {
-            //cgColor[sciName] = cgColor[taxonName];
             cgColor[sciName] = cgColors[colrIndx++];
           }
         } else {
-          cgColor[sciName] = cgColor[taxonName]
+          if (typeof cgColor[sciName] === 'undefined') {
+            cgColor[sciName] = cgColor[taxonName]
+          }
         }
         idSciName = sciName.split(' ').join('_');
         if (typeof cmCount[sciName] === 'undefined') {cmCount[sciName] = 0;}
         cmCount[sciName]++;
         cmCount['all']++;
 
-        var llLoc = L.latLng(occJson.decimalLatitude, occJson.decimalLongitude);
+        var llLoc = altLoc ? altLoc : L.latLng(occJson.decimalLatitude, occJson.decimalLongitude);
 
         var popup = L.popup({
             maxHeight: 200,
             keepInView: true,
         }).setContent(occurrencePopupInfo(occJson, cmCount[sciName]));
 
-        if (clusterMarkers) {
-          var marker = L.marker(llLoc, {icon: L.divIcon(getClusterIconOptions(grpIcon, false, cgColor[sciName], 12))});
+        if (clusterMarkers) { //these are the individual markers
+          var marker = L.marker(llLoc, {icon: L.divIcon(getClusterIconOptions(grpIcon, false, cgColor[sciName], 10))});
         } else {
           var marker = L.circleMarker(llLoc, {
             fillColor: cgColor[sciName], //cgColor[taxonName], //interior color
@@ -730,7 +750,7 @@ async function updateMap(occJsonArr, taxonName) {
             }
           };
         let faIcon = 'round'==grpIcon ? 'circle' : ('triangle'==grpIcon ? 'caret-up fa-2x' : grpIcon);
-        let grpHtml = `<div class="layerControlItem" id="${idSciName}"><i class="fa fa-${faIcon}" style="background-color:${cgColor[`${sciName}`]}"></i>${sciName}<span id="groupCount-${idSciName}">&nbsp(<u><b>${cmCount[sciName]}</u></b>)</span></div>`;
+        let grpHtml = `<div class="layerControlItem" id="${idSciName}"><i class="fa fa-${faIcon}" style="color:${cgColor[`${sciName}`]}"></i>${sciName}<span id="groupCount-${idSciName}">&nbsp(<u><b>${cmCount[sciName]}</u></b>)</span></div>`;
   
         if (typeof cmGroup[sciName] === 'undefined') {
           console.log(`cmGroup[${sciName}] is undefined...adding.`);
@@ -828,8 +848,8 @@ function occurrencePopupInfo(occRecord) {
                 //info += `Event Date: ${m.format('MMMM Do YYYY')}<br/>`;
                 info += `Event Date: ${getDateMMMMDoYYYY(msecs)}<br/>`;
                 break;
-            case '':
-                info += `: ${occRecord[key]}<br/>`;
+            case 'noCoordinates':
+                info += `NO Coordinates. Location: ${occRecord[key]}<br/>`;
                 break;
             default: //un-comment this to list all properties
                 //info += `${key}: ${occRecord[key]}<br/>`;
@@ -985,7 +1005,7 @@ if (document.getElementById("gbifLoadOnOpen")) {
         }
 
         initGbifStandalone();
-        valMap.options.minZoom = 7;
+        valMap.options.minZoom = 2;
         valMap.options.maxZoom = 17;
         if (!boundaryLayerControl) {addBoundaries();}
         if (typeof speciesObj != "object") {
