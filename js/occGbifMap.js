@@ -9,7 +9,8 @@ Convert kml to geoJson:
   - togeojson file.kml > file.geojson
 */
 import { getCanonicalName, getScientificName, getAllData } from "./gbifAutoComplete.js";
-import { parseCanonicalFromScientific } from "./commonUtilities.js";
+import { parseCanonicalFromScientific } from "../VAL_Web_Utilities/js/commonUtilities.js";
+import { getOccsByNameAndLocation } from "../VAL_Web_Utilities/js/fetchGbifOccs.js";
 import { colorsList, speciesList } from "./mapTheseSpecies.js";
 
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
@@ -21,22 +22,21 @@ var cmGroup = {}; //object of layerGroups of different species' markers grouped 
 var cmCount = {}; //a global counter for cmLayer array-objects across mutiple species
 var cmTotal = {}; //a global total for cmLayer counts across species
 var cgColor = {}; //object of colors for separate species layers
-var cmColors = {0:"#800000",1:"green",2:"blue",3:"yellow",4:"orange",5:"purple",6:"cyan",7:"grey"};
+var cgShape = {}; //object of colors for separate species layers
+var cgColors = {0:"red",1:"blue",2:"green",3:"yellow",4:"orange",5:"purple",6:"cyan",7:"grey"};
+var colrIndx = 0;
 var cmRadius = zoomLevel/2;
 var valMap = {};
 var basemapLayerControl = false;
 var boundaryLayerControl = false;
 var speciesLayerControl = false;
-var sliderControl = false;
-//var myRenderer = L.canvas({ padding: 0.5 }); //make global so we can clear the canvas before updates...
-var xhrRecsPerPage = 1000; //the number of records to load per ajax request.  more is faster.
+var xhrRecsPerPage = 300; //the number of records to load per ajax request.  more is faster.
 var totalRecords = 0;
 var vtWKT = "POLYGON((-73.3427 45.0104,-73.1827 45.0134,-72.7432 45.0153,-72.6100 45.0134,-72.5551 45.0075,-72.4562 45.0090,-72.3113 45.0037,-72.0964 45.0066,-71.9131 45.0070,-71.5636 45.0138,-71.5059 45.0138,-71.5294 44.9748,-71.4949 44.9123,-71.5567 44.8296,-71.6281 44.7506,-71.6061 44.7077,-71.5677 44.6481,-71.5388 44.5817,-71.6006 44.5533,-71.5746 44.5308,-71.5883 44.4955,-71.6556 44.4504,-71.7146 44.4093,-71.7957 44.3975,-71.8163 44.3563,-71.8698 44.3327,-71.9138 44.3484,-71.9865 44.3386,-72.0346 44.3052,-72.0428 44.2432,-72.0662 44.1930,-72.0360 44.1349,-72.0580 44.0698,-72.1101 44.0017,-72.0937 43.9671,-72.1252 43.9088,-72.1733 43.8682,-72.1994 43.7899,-72.1994 43.7899,-72.2392 43.7384,-72.3010 43.7056,-72.3271 43.6391,-72.3436 43.5893,-72.3793 43.5814,-72.3972 43.5027,-72.3807 43.4988,-72.3999 43.4150,-72.4123 43.3601,-72.3903 43.3591,-72.4081 43.3282,-72.3999 43.2762,-72.4370 43.2342,-72.4493 43.1852,-72.4480 43.1311,-72.4507 43.0679,-72.4438 43.0067,-72.4699 42.9846,-72.5276 42.9645,-72.5331 42.8951,-72.5633 42.8639,-72.5098 42.7863,-72.5166 42.7652,-72.4741 42.7541,-72.4590 42.7289,-73.2761 42.7465,-73.2912 42.8025,-73.2850 42.8357,-73.2678 43.0679,-73.2472 43.5022,-73.2561 43.5615,-73.2939 43.5774,-73.3049 43.6271,-73.3557 43.6271,-73.3976 43.5675,-73.4326 43.5883,-73.4285 43.6351,-73.4079 43.6684,-73.3907 43.7031,-73.3516 43.7701,-73.3928 43.8207,-73.3832 43.8533,-73.3969 43.9033,-73.4086 43.9365,-73.4134 43.9795,-73.4381 44.0427,-73.4141 44.1058,-73.3928 44.1921,-73.3427 44.2393,-73.3186 44.2467,-73.3406 44.3484,-73.3385 44.3690,-73.2946 44.4328,-73.3296 44.5367,-73.3832 44.5919,-73.3770 44.6569,-73.3681 44.7477,-73.3317 44.7857,-73.3324 44.8043,-73.3818 44.8398,-73.3564 44.9040,-73.3392 44.9181,-73.3372 44.9643,-73.3537 44.9799,-73.3447 45.0046,-73.3447 45.0109,-73.3426 45.0104,-73.3427 45.0104))";
 var stateLayer = false;
 var countyLayer = false;
 var townLayer = false;
 var bioPhysicalLayer = false;
-//var kmlGroup = false; //this was global.  made it function scope so it's garbage collected.  global not necessary b/c it's used in one function.
 var geoGroup = false; //geoJson boundary group for ZIndex management
 var testHarness = false;
 var testData = false //flag to enable test data for development and debugging
@@ -45,6 +45,8 @@ var surveyBlocksEAME = false; //flag an EAME survey block map
 var taxaBreakout = 0; //flag to break sub-taxa into separate layers with counts.
 var showAccepted = 0; //flag to show taxa by acceptedScientificName instead of scientificName
 var baseMapDefault = null;
+var gadm_gid_vt = 'USA.46_1';
+var clusterMarkers = true;
 
 var occXHR = null; //make this global so we can abort a data request
 var nameType = 0; //0=scientificName, 1=commonName
@@ -75,13 +77,7 @@ function addMap() {
         attribution: attribSmall,
         id: 'mapbox.streets'
     });
-/*
-    var light = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
-        maxZoom: 20,
-        attribution: attribSmall,
-        id: 'mapbox.light'
-    });
-*/
+
     var satellite = L.tileLayer(`https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}@2x.jpg90?access_token=${mapBoxAccessToken}`, {
         maxZoom: 20,
         attribution: attribSmall,
@@ -114,7 +110,6 @@ function addMap() {
     }
 
     basemapLayerControl.addBaseLayer(streets, "Mapbox Streets");
-    //basemapLayerControl.addBaseLayer(light, "Mapbox Grayscale");
     basemapLayerControl.addBaseLayer(satellite, "Mapbox Satellite");
     basemapLayerControl.addBaseLayer(esriWorld, "ESRI Imagery");
     basemapLayerControl.addBaseLayer(esriTopo, "ESRI Topo Map");
@@ -146,7 +141,16 @@ function MapOverlayAdd(e) {
 function onZoomEnd(e) {
   zoomLevel = valMap.getZoom();
   zoomCenter = valMap.getCenter();
-  SetEachPointRadius();
+  //SetEachPointRadius();
+}
+
+async function zoomVT() {
+  geoGroup.eachLayer(async layer => {
+    if ('State'==layer.options.name) {
+      console.log('zoomVT found GeoJson layer', layer.options.name);
+      valMap.fitBounds(layer.getBounds());
+    }
+  })
 }
 
 /*
@@ -168,12 +172,7 @@ async function addBoundaries() {
     boundaryLayerControl.setPosition("bottomright");
 
     console.log("addBoundaries (geoJson) ...");
-/*
-    addGeoJsonLayer('geojson/LineString_VT_State_Boundary.geojson', "State Boundary", boundaryLayerControl);
-    addGeoJsonLayer('geojson/LineString_VT_County_Boundaries.geojson', "County Boundaries", boundaryLayerControl);
-    addGeoJsonLayer('geojson/LineString_VT_Town_Boundaries.geojson', "Town Boundaries", boundaryLayerControl);
-    addGeoJsonLayer('geojson/LineString_VT_Biophysical_Regions.geojson', "Biophysical Regions", boundaryLayerControl);
-*/
+
     geoGroup = new L.FeatureGroup();
     addGeoJsonLayer('geojson/Polygon_VT_State_Boundary.geojson', "State", 0, boundaryLayerControl, geoGroup);
     addGeoJsonLayer('geojson/Polygon_VT_County_Boundaries.geojson', "Counties", 1, boundaryLayerControl, geoGroup, !surveyBlocksLady && !surveyBlocksEAME);
@@ -463,6 +462,7 @@ function initGbifOccCanvas() {
         delete cmCount[key];
         delete cmTotal[key];
         delete cgColor[key];
+        delete cgShape[key];
     });
     console.log(`Remove species layer control from map`);
     if (speciesLayerControl) {valMap.removeControl(speciesLayerControl);}
@@ -486,84 +486,172 @@ function abortDataLoad() {
     }
 }
 
+async function fetchGbifVtOccsByTaxon(taxonName=false) {
+  let page = {};
+  let lim = 300;
+  let off = 0;
+  let max = 9900;
+  do {
+    page = await getOccsByNameAndLocation(off, lim, taxonName, gadm_gid_vt);
+    if (0 == off) {cmTotal[taxonName] = page.count;}
+    updateMap(page.results, taxonName);
+    off += lim;
+  } while (taxonName && !page.endOfRecords && off<max);
+  page = {}; off = 0;
+  do {
+    page = await getOccsByNameAndLocation(off, lim, taxonName, false, 'vermont', false);
+    if (0 == off) {cmTotal[taxonName] += page.count;} //set this just once
+    updateMap(page.results, taxonName);
+    off += lim;
+  } while (taxonName && !page.endOfRecords && off<max);
+}
+
 /*
-* query GBIF Occ API for json array of occurrence data
-*
-* https://api.gbif.org/v1/occurrence/search?scientific_name=ambystoma%20maculatum&state_province=Vermont&advanced=1&limit=1000
-*
-* max limit is 300 results per page
+  Handle a click on an occurrence marker. This is done to avoid hanging a popup on each point to improve performance.
+  There is a performance hit, still, because we have to hang popup data on the marker when it's created.
 */
-function addGbifOccByTaxon(taxonName=false) {
+async function markerOnClick(e) {
+  //eleWait.style.display = 'block';
 
-    console.log(`addGbifOccByTaxon(${taxonName})`);
+  let options = e.target ? e.target.options : e.options;
+  let latlng = e.latlng ? e.latlng : e._latlng;
 
-    var baseUrl = 'https://api.gbif.org/v1/occurrence/search';
-    var vermont = 'state_province=Vermont&advanced=1'
-    var limit = `limit=${xhrRecsPerPage}`;
-    if (!taxonName) {taxonName = getCanonicalName();}
-    var query = `scientific_name=${taxonName}`;
-    if (nameType) {query = `q=${taxonName}`;} //commonName uses q
-    var gbifUrl = `${baseUrl}?${vermont}&${query}&${limit}`;
-    if(document.getElementById("apiUrlLabel")) {document.getElementById("apiUrlLabel").innerHTML = (gbifUrl);}
+  //console.log('markerOnClick', latlng, options);
 
-    console.log(`addGbifOccByTaxon API query for taxonName ${taxonName}:`, gbifUrl);
+  var popup = L.popup({
+    maxHeight: 200,
+    keepInView: true
+    })
+    .setContent(occurrencePopupInfo(options))
+    .setLatLng(latlng)
+    .openOn(valMap);
 
-    // start a new chain of fetch events
-    initOccRequest(gbifUrl, taxonName);
+    //eleWait.style.display = 'none';
 }
 
-function initOccRequest(url, taxonName) {
-    //var occXHR = new XMLHttpRequest();
-    occXHR = new XMLHttpRequest();
-
-    //handle request responses here in this callback
-    occXHR.onreadystatechange = function() {
-        if (this.readyState == 4 && this.status == 200) {
-            occResults(this, url, taxonName);
-        } else if (this.status > 299) {
-          console.log(`initOccRequest(${taxonName}) --> ${url} |  readyState: ${this.readyState} | status: ${this.status}`);
-        }
-    };
-
-    //load the first N records of data, which initiates subsequent page loads
-    loadPage(occXHR, url, taxonName, 0);
+async function markerMouseOver(e) {
+  //console.log('markerMouseOver', e);
+  let o = e.target.options;
+  let content = `
+    <b><u>${o.canonicalName}</u></b><br>
+    ${o.recordedBy ? o.recordedBy : 'Unknown'}<br>
+    ${moment(o.eventDate).format('YYYY-MM-DD')}<br>
+    `;
+  e.target.bindTooltip(content).openTooltip();
 }
 
-function loadPage(occXHR, url, taxonName, offset  ) {
-    occXHR.open("GET", url+`&offset=${offset}`, true);
-    /*
-     * NOTE: the VAL ALA site does not respond with a "Content-type" header.  We only get an
-     * "x-requested-with" pre-flight header response.  This means we can't send a *request* having this header.
-     * The two lines beloew, taken from the iNat code, asked the server to send us JSON.
-     * For VAL, we let the reponse return as text and then we JSON.parse(response).
-     */
-    //occXHR.responseType = 'json';  //looks like you need to add this after the open, and use 'reponse' above, not 'responseText'
-    //occXHR.setRequestHeader("Content-type", "application/json");
-    occXHR.send();
-}
+/*
+  Respond to a click on a leaflet.cluster group
+*/
+async function clusterOnClick(e) {
+  //console.log('clusterOnClick | target.options:', e.target.options);
+  //console.log('clusterOnClick | childMarkerCount:', e.layer.getAllChildMarkers().length);
+  //console.log('clusterOnClick | cluster:', e.layer);
 
-async function occResults(occXHR, url, taxonName) {
-    var jsonRes = JSON.parse(occXHR.response);
-    var totCnt = jsonRes.count; cmTotal[taxonName] = jsonRes.count;
-    var limit = jsonRes.limit;
-    var offset = jsonRes.offset;
-    var netCnt = offset + limit;
-    if (netCnt > totCnt) {netCnt = totCnt;}
-    if (document.getElementById("apiUrlLabel")) {
-      document.getElementById("apiUrlLabel").innerHTML = (`<a href='${url}&offset=${offset}'>${url}&offset=${offset}</a>`);
+  let cluster = e.layer
+  let bottomCluster = cluster;
+
+  while (bottomCluster._childClusters.length === 1) {
+    bottomCluster = bottomCluster._childClusters[0];
+  }
+
+  if (bottomCluster._zoom === this._maxZoom && bottomCluster._childCount === cluster._childCount) {
+    // All child markers are contained in a single cluster from this._maxZoom to this cluster.
+    //console.log('clusterOnClick | Cluster will Spiderfy');
+    if (valMap.getZoom() < 15) {
+      //valMap.setView(e.latlng, 15); //valMap.getZoom()+5
     }
-    if (document.getElementById("jsonResults")) {
-        document.getElementById("jsonResults").innerHTML = `Total ${taxonName}: ${totCnt} | ${taxonName} loaded: ${netCnt}`;
-        }
-    console.log(`occGbifMap::occResults | requested taxon: ${taxonName} | result:`);
-    console.dir(jsonRes);
-    await updateMap(jsonRes.results, taxonName);
-    if (totCnt > netCnt) {
-      console.log('occGbifMap::occResults calling loadPage for net', netCnt+1, 'of tot', totCnt);
-      loadPage(occXHR, url, taxonName, netCnt);
+  } else {
+    //console.log(`clusterOnClick | Cluster will Zoom`);
+  }
+
+  if (cluster._group._spiderfied) {
+    //console.log('clusterOnClick | Cluster IS Spiderfied. Unspiderfy.');
+    cluster.unspiderfy();
+  }
+}
+
+async function clusterOnSpiderfied(e) {
+  //console.log('clusterOnSpiderfied | e:', e);
+
+  let list = `<b><u>${e.markers.length} Occurrences</u></b><br>`;
+
+  e.markers.forEach(async (mark, idx) => {
+    //console.log('child marker', idx, mark.options);
+    let o = mark.options;
+    if (o.noCoordinates) {
+      list += `NO COORDINATES - <a href="https://gbif.org/occurrence/${o.gbifID}">${o.gbifID}</a>: ${o.canonicalName}, ${moment(o.eventDate).format('YYYY-MM-DD')}, ${o.recordedBy ? o.recordedBy : 'Unknown'}<br>`;
     } else {
-      occXHR.abort(); //does this clean up memory?
+      list += `<a href="https://gbif.org/occurrence/${o.gbifID}">${o.gbifID}</a>: ${o.canonicalName}, ${moment(o.eventDate).format('YYYY-MM-DD')}, ${o.recordedBy ? o.recordedBy : 'Unknown'}<br>`;
     }
+    })
+
+  var popup = L.popup({
+    maxHeight: 200,
+    keepInView: false
+    })
+    .setContent(list)
+    .setLatLng(e.cluster._latlng)
+    .openOn(valMap);
+}
+
+/*
+  Shapes defined by divIcon className can be resized with divIcon iconSize (square, round, ...)
+  Shapes defined by custom html/css don't respond to divIcon iconSize (diamond, ...)
+*/
+function getClusterIconOptions(grpIcon, cluster, color=false, size=30) {
+  let html;
+  let name;
+  let syze = L.point(size, size);
+  let styleRound = `
+  background-color: ${color};
+  border-radius: 50%;
+  border-color: black;
+  border-style: solid;
+  border-width: 2px;
+  margin-top: 15px;
+  `
+  switch(grpIcon) {
+    default:
+    case 'round':
+      //html = `<span style="${styleRound};"><div class="cluster-count"> ${cluster ? cluster.getChildCount() : ''} </div></span>`;
+      //html = `<div style="background-color:${color};" class="blue cluster-count"> ${cluster ? cluster.getChildCount() : ''} </div>`;
+      html = `<div class="cluster-count"> ${cluster ? cluster.getChildCount() : ''} </div>`;
+      name = `${grpIcon}-shape`;
+      if (color) name = `${name} bg-${color}`; //add bg-{color} as classname
+      break;
+    case 'square':
+      html = `<div class="cluster-count"> ${cluster ? cluster.getChildCount() : ''} </div>`;
+      name = `${grpIcon}-shape`;
+      if (color) name = `${name} bg-${color}`; //add bg-{color} as classname
+      break;
+    case 'triangle':
+      html = `<div class="triangle-count"> ${cluster ? cluster.getChildCount() : ''} </div>`;
+      name = cluster ? 'triangle-shape' : 'triangle-small';
+      break;
+    case 'diamond':
+      html = `
+        <div class="${cluster ? 'diamond-shape' : 'diamond-small'} bg-${color}">
+          <div class="diamond-count ${foreground(color)}">${cluster ? cluster.getChildCount() : ''}</div>
+        </div>`;
+      //html = `<div class="diamond-count">${cluster ? cluster.getChildCount() : ''}</div>`;
+      //name = cluster ? 'diamond-shape' : 'diamond-small';
+      //if (color) name = `${name} bg-${color}`; //add bg-{color} as classname
+      break;
+  }
+  //console.log(`getClusterIconOptions | divIcon html:`, html)
+  //return {'html':html, 'className':name, 'iconSize':syze, 'iconAnchor':[size, size]}
+  return {'html':html, 'className':name, 'iconSize':syze}
+}
+
+function foreground(color) {
+  switch(color) {
+    case 'red': return 'white';
+    case 'blue': return 'yellow';
+    case 'yellow': return 'blue';
+    case 'black': return 'white';
+    default: return 'black';
+  }
 }
 
 /*
@@ -572,10 +660,10 @@ async function occResults(occXHR, url, taxonName) {
     taxaBreakout = 0;
 */
 async function updateMap(occJsonArr, taxonName) {
-    var idTaxonName = taxonName.split(' ').join('_'); //this is updated later if we got multiple scientificNames for one taxonName
     var sciName = taxonName; //this is updated later if we got multiple scientificNames for one taxonName
     var idSciName = null;
     var canName = null;
+    var grpIcon = cgShape[taxonName] ? cgShape[taxonName] : 'round'; //MUST be one of round, square, triangle, diamond
 
     for (var i = 0; i < occJsonArr.length; i++) {
         var occJson = occJsonArr[i];
@@ -585,12 +673,24 @@ async function updateMap(occJsonArr, taxonName) {
             if (typeof cmCount['missing'] === 'undefined') {cmCount['missing'] = 0;}
             cmCount['missing']++;
             console.log('WARNING: Occurrence Record without Lat/Lon values:', occJson.key, 'missing:', cmCount['missing'], 'count:', cmCount['all']);
-            continue;
+            //continue;
+            occJson.decimalLatitude = 44.0;
+            occJson.decimalLongitude = -71.5;
+            occJson.noCoordinates = true;
+            //grpIcon = 'triangle';
         }
 
-        if (taxaBreakout) {sciName = occJson.scientificName;}
-        canName = parseCanonicalFromScientific(occJson);
-        if (canName) {sciName = canName;}
+        if (taxaBreakout) {
+          sciName = occJson.scientificName;
+          canName = parseCanonicalFromScientific(occJson);
+          if (canName) {sciName = canName;}
+          if (typeof cgColor[sciName] === 'undefined') {
+            //cgColor[sciName] = cgColor[taxonName];
+            cgColor[sciName] = cgColors[colrIndx++];
+          }
+        } else {
+          cgColor[sciName] = cgColor[taxonName]
+        }
         idSciName = sciName.split(' ').join('_');
         if (typeof cmCount[sciName] === 'undefined') {cmCount[sciName] = 0;}
         cmCount[sciName]++;
@@ -603,9 +703,11 @@ async function updateMap(occJsonArr, taxonName) {
             keepInView: true,
         }).setContent(occurrencePopupInfo(occJson, cmCount[sciName]));
 
-        var marker = L.circleMarker(llLoc, {
-            //renderer: myRenderer, //using this puts markers behind overlays. do we need it? We do not.
-            fillColor: cgColor[taxonName], //interior color
+        if (clusterMarkers) {
+          var marker = L.marker(llLoc, {icon: L.divIcon(getClusterIconOptions(grpIcon, false, cgColor[sciName], 12))});
+        } else {
+          var marker = L.circleMarker(llLoc, {
+            fillColor: cgColor[sciName], //cgColor[taxonName], //interior color
             fillOpacity: 0.5, //values from 0 to 1
             color: "black", //border color
             weight: 1, //border thickness
@@ -613,14 +715,33 @@ async function updateMap(occJsonArr, taxonName) {
             index: cmCount[sciName],
             occurrence: occJson.scientificName, //occJson.species,
             time: getDateYYYYMMDD(occJson.eventDate)
-        }).bindPopup(popup);
+          }).bindPopup(popup);
+        }
 
-        marker.bringToFront(); //this is not necessary, currently. can't hurt though.
+        Object.assign(marker.options, occJson);
+        marker.options.canonicalName = canName ? canName : occJson.scientificName;
+        marker.on('click', markerOnClick);
+        marker.on('mouseover', markerMouseOver);
 
+        let clusterOptions = {
+          maxClusterRadius: 40,
+          iconCreateFunction: function(cluster) {
+            return L.divIcon(getClusterIconOptions(grpIcon, cluster, cgColor[sciName]), 90);
+            }
+          };
+        let faIcon = 'round'==grpIcon ? 'circle' : ('triangle'==grpIcon ? 'caret-up fa-2x' : grpIcon);
+        let grpHtml = `<div class="layerControlItem" id="${idSciName}"><i class="fa fa-${faIcon}" style="background-color:${cgColor[`${sciName}`]}"></i>${sciName}<span id="groupCount-${idSciName}">&nbsp(<u><b>${cmCount[sciName]}</u></b>)</span></div>`;
+  
         if (typeof cmGroup[sciName] === 'undefined') {
           console.log(`cmGroup[${sciName}] is undefined...adding.`);
-          cmGroup[sciName] = await L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-          await speciesLayerControl.addOverlay(cmGroup[sciName], `<label id="${idSciName}">${sciName}</label>`);
+          if (clusterMarkers) {
+            cmGroup[sciName] = L.markerClusterGroup(clusterOptions).addTo(valMap);
+            cmGroup[sciName].on('clusterclick', clusterOnClick);
+            cmGroup[sciName].on('spiderfied', clusterOnSpiderfied);
+          } else {
+            cmGroup[sciName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated with points
+          }
+          speciesLayerControl.addOverlay(cmGroup[sciName], grpHtml);
           cmGroup[sciName].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
         } else {
           cmGroup[sciName].addLayer(marker); //add this marker to the current layerGroup, which is an ojbect with possibly multiple layerGroups by taxonName
@@ -641,9 +762,11 @@ async function updateMap(occJsonArr, taxonName) {
     var id = null;
     Object.keys(cmGroup).forEach((sciName) => {
       id = sciName.split(' ').join('_');
-      if (document.getElementById(id) && sciName.toLowerCase().includes(taxonName.toLowerCase())) {
+      //if (document.getElementById(id) && sciName.toLowerCase().includes(taxonName.toLowerCase())) {
+      if (document.getElementById(id)) {
           console.log(`-----match----->> ${id} | ${sciName}`, cmCount[sciName], cmTotal[taxonName]);
-          document.getElementById(id).innerHTML = `${sciName} (${cmCount[sciName]}/${cmTotal[taxonName]})`;
+          //document.getElementById(id).innerHTML = `${sciName} (${cmCount[sciName]}/${cmTotal[taxonName]})`;
+          document.getElementById(`groupCount-${id}`).innerHTML = `&nbsp(<u><b>${cmCount[sciName]}</b></u>)`;
       }
     });
 }
@@ -668,10 +791,8 @@ function getDateMMMMDoYYYY(msecs) {
     return m.format('MMMM Do YYYY');
 }
 
-function occurrencePopupInfo(occRecord, index) {
+function occurrencePopupInfo(occRecord) {
     var info = '';
-
-    if (testHarness) {info += `Map Index: ${index}<br/>`;}
 
     Object.keys(occRecord).forEach(function(key) {
         switch(key) {
@@ -682,8 +803,8 @@ function occurrencePopupInfo(occRecord, index) {
                     info += `Institution: ${occRecord[key]}<br/>`;
                 }
                 break;
+            //case 'gbifID':
             case 'key':
-                //info += `GBIF key: ${occRecord[key]}<br/>`;
                 info += `<a href="https://www.gbif.org/occurrence/${occRecord[key]}" target="_blank">GBIF Occurrence Record </a><br/>`;
                 break;
             case 'decimalLatitude':
@@ -749,7 +870,7 @@ export function getValOccCanvas(map, taxonName) {
         addMapCallbacks();
         initGbifOccCanvas();
         cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-        cgColor[taxonName] = cmColors[0];
+        cgColor[taxonName] = cgColors[0];
         cmCount[taxonName] = 0;
         cmTotal[taxonName] = 0;
         addGbifOccByTaxon(taxonName);
@@ -794,7 +915,7 @@ if (document.getElementById("gbifStandalone")) {
             if (testData) {
               const taxonName = 'TestData';
               cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
-              cgColor[taxonName] = cmColors[0];
+              cgColor[taxonName] = cgColors[0];
               getTestData('../testData/testData.json', taxonName);
             } else {
               const taxonName = getCanonicalName();
@@ -832,6 +953,15 @@ if (document.getElementById("valSurveyBlocksEAME")) {
   initGbifStandalone();
 }
 
+let argUrl = `${location.hostname}${location.pathname}?species=`;
+let argMsg = `
+Please pass an object literal like:
+  ${argUrl}{'Turdus migratorius':'#800000'}\r
+  ${argUrl}{'Ambystoma':'blue', 'clusterMarkers':true}
+Use "taxaBreakout":true/false to control how sub-taxa are handled.\r
+Use "clusterMarkers":true/false to controls how stacked and dense data are shown.
+`;
+
 /*
  * Minimal (map-only) standalone use
  *
@@ -851,17 +981,15 @@ if (document.getElementById("gbifLoadOnOpen")) {
           console.log('species object:', speciesObj)
         } catch(error) {
           console.log('ERROR parsing http arugment', speciesStr, 'as JSON:', error);
-          alert('Please pass species as object literal like [map-page-url]?species={"Turdus migratorius":"#800000"}');
+          alert(argMsg);
         }
 
         initGbifStandalone();
-        valMap.options.minZoom = 8;
+        valMap.options.minZoom = 7;
         valMap.options.maxZoom = 17;
-        //initGbifOccCanvas();
-        //addGbifOccByTaxon('Bombus borealis');
         if (!boundaryLayerControl) {addBoundaries();}
         if (typeof speciesObj != "object") {
-            alert('Please pass an object literal like [map-page-url]?species={"Turdus migratorius":"#800000"}');
+            alert(argMsg);
         } else {
             getSpeciesListData(speciesObj);
         }
@@ -906,34 +1034,37 @@ function getSpeciesListData(argSpecies = false) {
       taxaBreakout = argSpecies.taxaBreakout;
       delete argSpecies.taxaBreakout;
     }
+    //allow an object-value of 'clusterMarkers' to set that behavior. use it and delete it.
+    if (typeof argSpecies.clusterMarkers != 'undefined') {
+      clusterMarkers = argSpecies.clusterMarkers;
+      delete argSpecies.clusterMarkers;
+    }
 
     Object.keys(argSpecies).forEach(async function(taxonName) {
         taxonName = taxonName.trim();
-        cmGroup[taxonName] = L.layerGroup().addTo(valMap); //create a new, empty, single-species layerGroup to be populated from API
         cmCount[taxonName] = 0;
-        cgColor[taxonName] = argSpecies[taxonName]; //define circleMarker color for each species mapped
+        cgColor[taxonName] = argSpecies[taxonName].color; //define circleGroup color for each species mapped
+        cgShape[taxonName] = argSpecies[taxonName].shape; //define circleGroup color for each species mapped
         cmTotal[taxonName] = 0;
         console.log(`getSpeciesListData: Add species group ${taxonName} with color ${argSpecies[taxonName]}`);
-        await addGbifOccByTaxon(taxonName);
-        var idTaxonName = taxonName.split(' ').join('_');
-        speciesLayerControl.addOverlay(cmGroup[taxonName], `<span id="${idTaxonName}">${taxonName}</span>`);
+        await fetchGbifVtOccsByTaxon(taxonName);
         i++;
     });
 }
 
 function addMapCallbacks() {
-    /*
-     * This event is triggered for each 'layeradd', which in our case is for each circleMarker.
-     * Doing anything here has major performance hit.
-     */
-/*
-    valMap.on('layeradd', function (event) {
-*/
-    valMap.on('zoomend', function () {
+
+  valMap.on('zoomend', function () {
         console.log(`Map Zoom: ${valMap.getZoom()}`);
     });
     valMap.on('moveend', function() {
         console.log(`Map Center: ${valMap.getCenter()}`);
     });
 
+}
+
+if (document.getElementById("zoomVT")) {
+  document.getElementById("zoomVT").addEventListener("click", () => {
+    zoomVT();
+  });
 }
