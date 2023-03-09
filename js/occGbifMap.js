@@ -11,6 +11,7 @@ Convert kml to geoJson:
 import { getCanonicalName, getScientificName, getAllData } from "./gbifAutoComplete.js";
 import { parseCanonicalFromScientific } from "../VAL_Web_Utilities/js/commonUtilities.js";
 import { getOccsByNameAndLocation } from "../VAL_Web_Utilities/js/fetchGbifOccs.js";
+import { getWikiPage } from '../VAL_Web_Utilities/js/wikiPageData.js';
 import { colorsList, speciesList } from "./mapTheseSpecies.js";
 
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
@@ -48,8 +49,9 @@ var showAccepted = 0; //flag to show taxa by acceptedScientificName instead of s
 var baseMapDefault = null;
 var gadm_gid_vt = 'USA.46_1';
 var clusterMarkers = true;
+var iconMarkers = true;
 
-var occXHR = null; //make this global so we can abort a data request
+var abortData = false; //make this global so we can abort a data request
 var nameType = 0; //0=scientificName, 1=commonName
 
 //for standalone use
@@ -479,12 +481,7 @@ function getTestData(file, taxonName) {
 
 function abortDataLoad() {
     console.log('abortDataLoad request received.');
-
-    if (occXHR) {
-      occXHR.abort();
-    } else {
-      console.log(`No pending data load.`)
-    }
+    abortData = true;
 }
 
 async function fetchGbifVtOccsByTaxon(taxonName=false) {
@@ -497,14 +494,14 @@ async function fetchGbifVtOccsByTaxon(taxonName=false) {
     if (0 == off) {cmTotal[taxonName] = page.count;}
     updateMap(page.results, taxonName);
     off += lim;
-  } while (taxonName && !page.endOfRecords && off<max);
+  } while (taxonName && !page.endOfRecords && off<max && !abortData);
   page = {}; off = 0;
   do {
     page = await getOccsByNameAndLocation(off, lim, taxonName, false, 'vermont', false);
     if (0 == off) {cmTotal[taxonName] += page.count;} //set this just once
     updateMap(page.results, taxonName);
     off += lim;
-  } while (taxonName && !page.endOfRecords && off<max);
+  } while (taxonName && !page.endOfRecords && off<max && !abortData);
 }
 
 /*
@@ -523,7 +520,7 @@ async function markerOnClick(e) {
     maxHeight: 200,
     keepInView: true
     })
-    .setContent(occurrencePopupInfo(options))
+    .setContent(await occurrencePopupInfo(options)) //must use await to avoid error
     .setLatLng(latlng)
     .openOn(valMap);
 
@@ -719,12 +716,7 @@ async function updateMap(occJsonArr, taxonName) {
 
         var llLoc = altLoc ? altLoc : L.latLng(occJson.decimalLatitude, occJson.decimalLongitude);
 
-        var popup = L.popup({
-            maxHeight: 200,
-            keepInView: true,
-        }).setContent(occurrencePopupInfo(occJson, cmCount[sciName]));
-
-        if (clusterMarkers) { //these are the individual markers
+        if (clusterMarkers || iconMarkers) { //these are the individual markers
           var marker = L.marker(llLoc, {icon: L.divIcon(getClusterIconOptions(grpIcon, false, cgColor[sciName], 10))});
         } else {
           var marker = L.circleMarker(llLoc, {
@@ -734,9 +726,8 @@ async function updateMap(occJsonArr, taxonName) {
             weight: 1, //border thickness
             radius: cmRadius,
             index: cmCount[sciName],
-            occurrence: occJson.scientificName, //occJson.species,
-            time: getDateYYYYMMDD(occJson.eventDate)
-          }).bindPopup(popup);
+            occurrence: occJson.scientificName
+          })
         }
 
         Object.assign(marker.options, occJson);
@@ -812,7 +803,7 @@ function getDateMMMMDoYYYY(msecs) {
     return m.format('MMMM Do YYYY');
 }
 
-function occurrencePopupInfo(occRecord) {
+async function occurrencePopupInfo(occRecord) {
     var info = '';
 
     Object.keys(occRecord).forEach(function(key) {
@@ -856,6 +847,23 @@ function occurrencePopupInfo(occRecord) {
                 //info += `${key}: ${occRecord[key]}<br/>`;
             }
         });
+
+        try {
+          //3. If no canonicalName parse canonicalName and call Wikipedida API
+          console.log(`occurrencePopupInfo | canonicalName:`, occRecord.canonicalName, '| taxonRank:', occRecord.taxonRank);
+          let canName = false;
+          //if (occRecord.canonicalName) {canName = occRecord.canonicalName;}
+          //else 
+          if (occRecord.taxonRank) {canName = parseCanonicalFromScientific(occRecord);}
+          if (canName) {
+            let wik = await getWikiPage(canName);
+            if (wik.thumbnail) {
+              info += `<a target="_blank" href="${wik.originalimage.source}"><img src="${wik.thumbnail.source}" width="50" height="50"><br/></a>`;
+            }
+          }
+        } catch(err) {
+          console.log(`occurrencePopupInfo::getWikiPage ERROR:`, err);
+        }
 
     return info;
 }

@@ -132,6 +132,7 @@
   border-width: 1px;
 }
 
+/*https://stackoverflow.com/questions/7073484/how-do-css-triangles-work*/
 .triangle-shape {
   -webkit-clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
   clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
