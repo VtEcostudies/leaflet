@@ -24,6 +24,7 @@ var cmTotal = {}; //a global total for cmLayer counts across species
 var cgColor = {}; //object of colors for separate species layers
 var cgShape = {}; //object of colors for separate species layers
 var cgColors = {0:"red",1:"blue",2:"green",3:"yellow",4:"orange",5:"purple",6:"cyan",7:"grey"};
+var cgShapes = {0:"round",1:"square",2:"triangle",3:"diamond",4:"star"};//,5:"oval"};
 var colrIndx = 0;
 var cmRadius = zoomLevel/2;
 var valMap = {};
@@ -1005,7 +1006,7 @@ if (document.getElementById("gbifLoadOnOpen")) {
         }
 
         initGbifStandalone();
-        valMap.options.minZoom = 2;
+        valMap.options.minZoom = 7;
         valMap.options.maxZoom = 17;
         if (!boundaryLayerControl) {addBoundaries();}
         if (typeof speciesObj != "object") {
@@ -1063,8 +1064,13 @@ function getSpeciesListData(argSpecies = false) {
     Object.keys(argSpecies).forEach(async function(taxonName) {
         taxonName = taxonName.trim();
         cmCount[taxonName] = 0;
-        cgColor[taxonName] = argSpecies[taxonName].color; //define circleGroup color for each species mapped
-        cgShape[taxonName] = argSpecies[taxonName].shape; //define circleGroup color for each species mapped
+        if (typeof argSpecies[taxonName] === 'object') {
+          cgColor[taxonName] = argSpecies[taxonName].color; //define circleGroup color for each species mapped
+          cgShape[taxonName] = argSpecies[taxonName].shape; //define circleGroup color for each species mapped
+        } else {
+          cgColor[taxonName] = argSpecies[taxonName]; //define group color for each species mapped
+          cgShape[taxonName] = cgShapes[i];
+        }
         cmTotal[taxonName] = 0;
         console.log(`getSpeciesListData: Add species group ${taxonName} with color ${argSpecies[taxonName]}`);
         await fetchGbifVtOccsByTaxon(taxonName);
