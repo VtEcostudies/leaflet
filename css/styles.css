@@ -28,6 +28,13 @@
   color: blue;
 }
 
+.black {
+  color: black;
+}
+.white {
+  color: white;
+}
+
 .red {
   color: red;
 }
@@ -55,12 +62,8 @@
 .violet {
   color: violet;
 }
-
-.black {
-  color: black;
-}
-.white {
-  color: white;
+.greenyellow {
+  color: greenyellow;
 }
 
 .bg-red {
@@ -89,6 +92,9 @@
 }
 .bg-violet {
   background-color: violet;
+}
+.bg-greenyellow {
+  background-color: greenyellow;
 }
 
 .cluster-count {
