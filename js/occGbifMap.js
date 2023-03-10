@@ -1,12 +1,5 @@
 /*
-10/23/2018
-Leaflet experiment.
-Goals:
-- load a json array from VAL Data Portal Occurrence API and populate the map with point occurrence data
-
-Convert kml to geoJson:
-  https://github.com/mapbox/togeojson
-  - togeojson file.kml > file.geojson
+  Load a json array from GBIF Occurrence API and populate the map with point occurrence data.
 */
 import { getCanonicalName, getScientificName, getAllData } from "./gbifAutoComplete.js";
 import { parseCanonicalFromScientific } from "../VAL_Web_Utilities/js/commonUtilities.js";
@@ -14,6 +7,7 @@ import { getOccsByNameAndLocation } from "../VAL_Web_Utilities/js/fetchGbifOccs.
 import { getWikiPage } from '../VAL_Web_Utilities/js/wikiPageData.js';
 import { colorsList, speciesList } from "./mapTheseSpecies.js";
 
+const fmt = new Intl.NumberFormat(); //use this to format nubmers like fmt.format(value)
 var vceCenter = [43.6962, -72.3197]; //VCE coordinates
 var vtCenter = [43.916944, -72.668056]; //VT geo center, downtown Randolph
 var vtAltCtr = [43.858297, -72.446594]; //VT border center for the speciespage view, where px bounds are small and map is zoomed to fit
@@ -24,9 +18,10 @@ var cmCount = {}; //a global counter for cmLayer array-objects across mutiple sp
 var cmTotal = {}; //a global total for cmLayer counts across species
 var cgColor = {}; //object of colors for separate species layers
 var cgShape = {}; //object of colors for separate species layers
-var cgColors = {0:"red",1:"blue",2:"green",3:"yellow",4:"orange",5:"purple",6:"cyan",7:"grey"};
+var cgColors = {0:"red",1:"blue",2:"green",3:"yellow",4:"orange",5:"purple",6:"cyan",7:"grey",8:"violet"};
 var cgShapes = {0:"round",1:"square",2:"triangle",3:"diamond",4:"star"};//,5:"oval"};
 var colrIndx = 0;
+var shapIndx = 0;
 var cmRadius = zoomLevel/2;
 var valMap = {};
 var basemapLayerControl = false;
@@ -50,7 +45,6 @@ var baseMapDefault = null;
 var gadm_gid_vt = 'USA.46_1';
 var clusterMarkers = true;
 var iconMarkers = true;
-
 var abortData = false; //make this global so we can abort a data request
 var nameType = 0; //0=scientificName, 1=commonName
 
@@ -491,17 +485,27 @@ async function fetchGbifVtOccsByTaxon(taxonName=false) {
   let max = 9900;
   do {
     page = await getOccsByNameAndLocation(off, lim, taxonName, gadm_gid_vt);
-    if (0 == off) {cmTotal[taxonName] = page.count;}
-    updateMap(page.results, taxonName);
+    if (page.count > max) {
+      abortData = true;
+      alert(`Fetching VT occurrences of '${taxonName}' from the GBIF API has ${fmt.format(page.count)} records, which exceeds the ${fmt.format(max)} record limit. Please choose a smaller data scope.`)
+    } else {
+      if (0 == off) {cmTotal[taxonName] += page.count;} //set this just once
+      updateMap(page.results, taxonName);
+    }
     off += lim;
   } while (taxonName && !page.endOfRecords && off<max && !abortData);
   page = {}; off = 0;
-  do {
+  while (taxonName && !page.endOfRecords && off<max && !abortData) {
     page = await getOccsByNameAndLocation(off, lim, taxonName, false, 'vermont', false);
-    if (0 == off) {cmTotal[taxonName] += page.count;} //set this just once
-    updateMap(page.results, taxonName);
+    if (page.count > max) {
+      abortData = true;
+      alert(`Fetching VT occurrences of '${taxonName}' from the GBIF API has ${fmt.format(page.count)} records, which exceeds the ${fmt.format(max)} record limit. Please choose a smaller data scope.`)
+    } else {
+      if (0 == off) {cmTotal[taxonName] += page.count;} //set this just once
+      updateMap(page.results, taxonName);
+    }
     off += lim;
-  } while (taxonName && !page.endOfRecords && off<max && !abortData);
+  };
 }
 
 /*
@@ -602,6 +606,8 @@ function getClusterIconOptions(grpIcon, cluster, color=false, size=30) {
   let name;
   let syze = L.point(size, size);
 
+  console.log('getClusterIconOptions | cluster:', cluster);
+
   switch(grpIcon) {
     default:
     case 'round':
@@ -670,7 +676,7 @@ async function updateMap(occJsonArr, taxonName) {
     var sciName = taxonName; //this is updated later if we got multiple scientificNames for one taxonName
     var idSciName = null;
     var canName = null;
-    var grpIcon = cgShape[taxonName] ? cgShape[taxonName] : 'round'; //MUST be one of round, square, triangle, diamond
+    var grpIcon = cgShape[taxonName] ? cgShape[taxonName] : 'round'; //MUST be one of round, square, triangle, diamond, star
     var altLoc = false;
 
     for (var i = 0; i < occJsonArr.length; i++) {
@@ -702,11 +708,15 @@ async function updateMap(occJsonArr, taxonName) {
           canName = parseCanonicalFromScientific(occJson);
           if (canName) {sciName = canName;}
           if (typeof cgColor[sciName] === 'undefined') {
-            cgColor[sciName] = cgColors[colrIndx++];
+            cgColor[sciName] = cgColors[colrIndx++]; if (colrIndx>=cgColors.length) {colrIndx=0;}
+          }
+          if (typeof cgShape[sciName] == 'undefined') {
+            cgShape[sciName] = cgShapes[shapIndx++]; if (shapIndx>=cgShapes.length) {shapIndx=0;}
           }
         } else {
           if (typeof cgColor[sciName] === 'undefined') {
-            cgColor[sciName] = cgColor[taxonName]
+            cgColor[sciName] = cgColor[taxonName];
+            cgShape[sciName] = grpIcon;
           }
         }
         idSciName = sciName.split(' ').join('_');
@@ -717,7 +727,7 @@ async function updateMap(occJsonArr, taxonName) {
         var llLoc = altLoc ? altLoc : L.latLng(occJson.decimalLatitude, occJson.decimalLongitude);
 
         if (clusterMarkers || iconMarkers) { //these are the individual markers
-          var marker = L.marker(llLoc, {icon: L.divIcon(getClusterIconOptions(grpIcon, false, cgColor[sciName], 10))});
+          var marker = L.marker(llLoc, {icon: L.divIcon(getClusterIconOptions(cgShape[sciName], false, cgColor[sciName], 10))});
         } else {
           var marker = L.circleMarker(llLoc, {
             fillColor: cgColor[sciName], //cgColor[taxonName], //interior color
@@ -735,19 +745,24 @@ async function updateMap(occJsonArr, taxonName) {
         marker.on('click', markerOnClick);
         marker.on('mouseover', markerMouseOver);
 
-        let clusterOptions = {
-          maxClusterRadius: 40,
-          iconCreateFunction: function(cluster) {
-            return L.divIcon(getClusterIconOptions(grpIcon, cluster, cgColor[sciName]), 90);
-            }
-          };
-        let faIcon = 'round'==grpIcon ? 'circle' : ('triangle'==grpIcon ? 'caret-up fa-2x' : grpIcon);
-        let grpHtml = `<div class="layerControlItem" id="${idSciName}"><i class="fa fa-${faIcon}" style="color:${cgColor[`${sciName}`]}"></i>${sciName}<span id="groupCount-${idSciName}">&nbsp(<u><b>${cmCount[sciName]}</u></b>)</span></div>`;
+        let faIcon = 'round'==cgShape[sciName] ? 'circle' : ('triangle'==cgShape[sciName] ? 'caret-up fa-2x' : cgShape[sciName]);
+        let grpHtml = `
+          <div class="layerControlItem" id="${idSciName}">
+            <i class="fa fa-${faIcon}" style="color:${cgColor[`${sciName}`]}"></i>
+            ${sciName}
+            <span id="groupCount-${idSciName}">&nbsp(<u><b>${cmCount[sciName]}</u></b>)</span>
+          </div>`;
   
         if (typeof cmGroup[sciName] === 'undefined') {
           console.log(`cmGroup[${sciName}] is undefined...adding.`);
           if (clusterMarkers) {
-            cmGroup[sciName] = L.markerClusterGroup(clusterOptions).addTo(valMap);
+            let clusterOptions = {
+              maxClusterRadius: 40,
+              iconCreateFunction: function(cluster) {
+                return L.divIcon(getClusterIconOptions(cgShape[sciName], cluster, cgColor[sciName]));
+                }
+              };
+            cmGroup[sciName] = new L.markerClusterGroup(clusterOptions).addTo(valMap);
             cmGroup[sciName].on('clusterclick', clusterOnClick);
             cmGroup[sciName].on('spiderfied', clusterOnSpiderfied);
           } else {
@@ -774,11 +789,10 @@ async function updateMap(occJsonArr, taxonName) {
     var id = null;
     Object.keys(cmGroup).forEach((sciName) => {
       id = sciName.split(' ').join('_');
-      //if (document.getElementById(id) && sciName.toLowerCase().includes(taxonName.toLowerCase())) {
-      if (document.getElementById(id)) {
+      if (document.getElementById(id) && sciName.toLowerCase().includes(taxonName.toLowerCase())) {
+      //if (document.getElementById(id)) {
           console.log(`-----match----->> ${id} | ${sciName}`, cmCount[sciName], cmTotal[taxonName]);
-          //document.getElementById(id).innerHTML = `${sciName} (${cmCount[sciName]}/${cmTotal[taxonName]})`;
-          document.getElementById(`groupCount-${id}`).innerHTML = `&nbsp(<u><b>${cmCount[sciName]}</b></u>)`;
+          document.getElementById(`groupCount-${id}`).innerHTML = `&nbsp(<u><b>${fmt.format(cmCount[sciName])}/${fmt.format(cmTotal[taxonName])}</b></u>)`;
       }
     });
 }
@@ -984,11 +998,12 @@ if (document.getElementById("valSurveyBlocksEAME")) {
 
 let argUrl = `${location.hostname}${location.pathname}?species=`;
 let argMsg = `
-Please pass an object literal like:
-  ${argUrl}{'Turdus migratorius':'#800000'}\r
-  ${argUrl}{'Ambystoma':'blue', 'clusterMarkers':true}
+Please pass an object literal like:\n
+  ${argUrl}{"Catharus bicknelli":{"shape":"square","color":"red"}}\r
+  ${argUrl}{"Ambystoma":{"shape":"diamond","color":"blue"}, "clusterMarkers":false, "taxaBreakout":true}\n
 Use "taxaBreakout":true/false to control how sub-taxa are handled.\r
-Use "clusterMarkers":true/false to controls how stacked and dense data are shown.
+Use "clusterMarkers":true/false to controls how stacked and dense data are shown.\n
+Note: taxaBreakout with clusterMarkers does not work properly. If you want to 
 `;
 
 /*
@@ -1079,8 +1094,15 @@ function getSpeciesListData(argSpecies = false) {
           cgColor[taxonName] = argSpecies[taxonName]; //define group color for each species mapped
           cgShape[taxonName] = cgShapes[i];
         }
+        for (const [key, val] of Object.entries(cgColors)) {
+          if (val == cgColor[taxonName]) colrIndx = key;
+        }
+        for (const [key, val] of Object.entries(cgShapes)) {
+          if (val == cgShape[taxonName]) shapIndx = key;
+        }
+        console.log('getSpeciesListData')
         cmTotal[taxonName] = 0;
-        console.log(`getSpeciesListData: Add species group ${taxonName} with color ${argSpecies[taxonName]}`);
+        console.log(`getSpeciesListData: Add species group ${taxonName} as ${colrIndx}:${cgColor[taxonName]} ${shapIndx}:${cgShape[taxonName]}s`);
         await fetchGbifVtOccsByTaxon(taxonName);
         i++;
     });

@@ -52,6 +52,10 @@
 .grey {
   color: grey;
 }
+.violet {
+  color: violet;
+}
+
 .black {
   color: black;
 }
@@ -82,6 +86,9 @@
 }
 .bg-grey {
   background-color: grey;
+}
+.bg-violet {
+  background-color: violet;
 }
 
 .cluster-count {
