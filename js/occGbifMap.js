@@ -3,7 +3,7 @@
 */
 import { getCanonicalName, getScientificName, getAllData } from "./gbifAutoComplete.js";
 import { parseCanonicalFromScientific } from "../VAL_Web_Utilities/js/commonUtilities.js";
-import { getOccsByNameAndLocation } from "../VAL_Web_Utilities/js/fetchGbifOccs.js";
+import { getGbifDatasetInfo, getOccsByNameAndLocation } from "../VAL_Web_Utilities/js/fetchGbifOccs.js";
 import { getWikiPage } from '../VAL_Web_Utilities/js/wikiPageData.js';
 import { colorsList, speciesList } from "./mapTheseSpecies.js";
 
@@ -291,8 +291,8 @@ function onEachFeature(feature, layer) {
     layer.on('click', function (event) {
         //console.log('click | event', event, '| layer', layer);
         event.target._map.fitBounds(layer.getBounds());
-        console.log(feature.properties);
-        //clickHandler(event, layer);
+        //console.log(feature.properties);
+        getGeoJsonLayerFromTypeName(layer.options.name, feature.properties.CNTYNAME || feature.properties.TOWNNAME);
     });
     layer.on('contextmenu', function (event) {
         //console.log('CONTEXT-MENU | event', event, '| layer', layer);
@@ -659,13 +659,56 @@ function foreground(color) {
   }
 }
 
-function getCentroid(what, whom) {
-  if ('county' == what) {
-    return L.latLng(43.5, -71.5);
+async function getCentroid(type, valu) {
+  console.log('getCentroid', type, valu);
+  let item = await getGeoJsonLayerFromTypeName(type, valu);
+  console.log('getCentroid RESULT', item);
+  if (item.feature) {
+    let polygon = turf.polygon(item.feature.geometry.coordinates);
+    let centroid = turf.centroid(polygon);
+    console.log(`${type} ${valu} CENTROID:`, centroid);
+    //let centMark = L.marker([centroid.geometry.coordinates[1], centroid.geometry.coordinates[0]]).addTo(valMap);
+    return L.latLng(centroid.geometry.coordinates[1], centroid.geometry.coordinates[0]);
+  } else {
+    return L.latLng(42.0, 71.5);
   }
-  if ('town' == what) {
-    return L.latLng(43.0, -71.5);
+}
+
+async function getGeoJsonLayerFromTypeName(type, name) {
+  for await (const [index, layer] of Object.entries(geoGroup._layers)) {
+    //console.log('geoGroup Layer:', layer);
+    //console.log('getGeoJsonLayerFromTypeName found GeoJson layer', layer, layer.options.name,type.slice(0,5).toUpperCase(),layer.options.name.slice(0,5).toUpperCase());
+    if (type.slice(0,5).toUpperCase()==layer.options.name.slice(0,5).toUpperCase()) {
+      console.log('getGeoJsonLayerFromTypeName SELECTED GeoJson layer', layer.options.name);
+      //console.log(`getGeoJsonLayerFromTypeName | layer:`, layer);
+      let feature = await getFeatureFromLayerByName(layer, name)
+      return feature;
+    }
   }
+  console.log('LAYER loop DONE.')
+  return {};
+}
+async function getFeatureFromLayerByName(layer, name) {
+  for await (const [key, val] of Object.entries(layer._layers)) { //iterate over geoJson layer's feature layers
+    //console.log(key, val);
+    if (name.toUpperCase() == val.feature.properties.CNTYNAME) {
+      console.log(`getFeatureFromLayerByName found CNTYNAME`, val.feature.properties.CNTYNAME)
+      console.log(`getFeatureFromLayerByName feature`, val)
+      return val;
+    }
+    if (name.toUpperCase() == val.feature.properties.TOWNNAME) {
+      console.log(`getFeatureFromLayerByName found TOWNNAME`, val.feature.properties.TOWNNAME);
+      console.log(`getFeatureFromLayerByName feature`, val);
+      return val;
+    }
+    if (name.toUpperCase() == val.feature.properties.BLOCKNAME) {
+      console.log(`getFeatureFromLayerByName found BLOCKNAME`, val.feature.properties.BLOCKNAME)
+      console.log(`getFeatureFromLayerByName feature`, val)
+      return val;
+    }
+  }
+  console.log('FEATURE loop DONE.')
+  return {};
 }
 /*
   This automatically breaks taxa into sub-taxa. To disable this feature, set the global flag
@@ -690,11 +733,11 @@ async function updateMap(occJsonArr, taxonName) {
             //continue;
             if (occJson.town) {
               //console.log(`Location by TOWN`, occJson.town);
-              altLoc = getCentroid('town', occJson.town);
+              altLoc = await getCentroid('town', occJson.town);
               occJson.noCoordinates = `${occJson.town} Town`;
             } else if (occJson.county) {
               //console.log(`Location by COUNTY`, occJson.county);
-              altLoc = getCentroid('county', occJson.county);
+              altLoc = await getCentroid('county', occJson.county);
               occJson.noCoordinates = `${occJson.county} County`;
             } else {
               altLoc =  L.latLng(44.0, -71.5);
