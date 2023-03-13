@@ -687,12 +687,15 @@ async function getGeoJsonLayerFromTypeName(type, name) {
       return feature;
     }
   }
-  console.log('LAYER loop DONE.')
+  console.log('LAYER loop DONE.');
   return {};
 }
 async function getFeatureFromLayerByName(layer, name) {
   for await (const [key, val] of Object.entries(layer._layers)) { //iterate over geoJson layer's feature layers
     //console.log(key, val);
+    if (name.toUpperCase() == 'VERMONT') {
+      return val;
+    }
     if (name.toUpperCase() == val.feature.properties.CNTYNAME) {
       //console.log(`getFeatureFromLayerByName found CNTYNAME`, val.feature.properties.CNTYNAME)
       //console.log(`getFeatureFromLayerByName feature`, val)
@@ -709,7 +712,7 @@ async function getFeatureFromLayerByName(layer, name) {
       return val;
     }
   }
-  console.log('FEATURE loop DONE.')
+  console.log('FEATURE loop DONE.'); 
   return {};
 }
 
@@ -743,8 +746,8 @@ async function updateMap(occJsonArr, taxonName) {
               altLoc = await getCentroid('county', occJson.county);
               occJson.noCoordinates = `${occJson.county} County`;
             } else {
-              altLoc =  L.latLng(44.0, -71.5);
-              occJson.noCoordinates = 'None';
+              altLoc =  vtCenter; //await getCentroid('state', 'Vermont'); //L.latLng(44.0, -71.5);
+              occJson.noCoordinates = 'Vermont'; //None';
             }
         }
 
