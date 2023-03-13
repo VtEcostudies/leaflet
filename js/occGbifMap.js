@@ -57,7 +57,7 @@ function addMap() {
             crs: L.CRS.EPSG3857 //have to do this to conform to USGS maps
         });
 
-    new L.Control.Zoom({ position: 'bottomright' }).addTo(valMap);
+    new L.Control.Zoom({ position: 'bottomleft' }).addTo(valMap);
 
     var attribLarge =  'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
             '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
@@ -103,7 +103,8 @@ function addMap() {
     valMap.addLayer(baseMapDefault); //and start with that one
 
     if(basemapLayerControl === false) {
-        basemapLayerControl = L.control.layers().addTo(valMap);
+      //basemapLayerControl = L.control.layers().addTo(valMap);
+      basemapLayerControl = L.control.layers();
     }
 
     basemapLayerControl.addBaseLayer(streets, "Mapbox Streets");
@@ -161,12 +162,13 @@ async function zoomVT() {
 async function addBoundaries() {
 
     if (boundaryLayerControl === false) {
-        boundaryLayerControl = L.control.layers().addTo(valMap);
+        //boundaryLayerControl = L.control.layers().addTo(valMap);
+        boundaryLayerControl = L.control.layers();
     } else {
         console.log('boundaryLayerControl already added.')
         return;
     }
-    boundaryLayerControl.setPosition("bottomright");
+    //boundaryLayerControl.setPosition("bottomright");
 
     console.log("addBoundaries (geoJson) ...");
 
@@ -803,6 +805,8 @@ async function updateMap(occJsonArr, taxonName) {
         if (typeof cmGroup[sciName] === 'undefined') {
           console.log(`cmGroup[${sciName}] is undefined...adding.`);
           if (clusterMarkers) {
+            let shape=cgShape[sciName]; let color=cgColor[sciName];
+            if (taxaBreakout) {shape='round';color='none';}
             let clusterOptions = {
               maxClusterRadius: 40,
               iconCreateFunction: function(cluster) {
@@ -1120,6 +1124,20 @@ function getSpeciesListData(argSpecies = false) {
         speciesLayerControl = L.control.layers(null,null,{sortLayers:true}).addTo(valMap);
         speciesLayerControl.setPosition("bottomright");
     }
+    if (!basemapLayerControl) {
+      basemapLayerControl = L.control.layers().addTo(valMap);
+      basemapLayerControl.setPosition("bottomright");
+    } else {
+      basemapLayerControl.addTo(valMap);
+      basemapLayerControl.setPosition("bottomright");
+    }
+    if (!boundaryLayerControl) {
+      boundaryLayerControl = L.control.layers().addTo(valMap);
+      boundaryLayerControl.setPosition("bottomright");
+    } else {
+      boundaryLayerControl.addTo(valMap);
+      boundaryLayerControl.setPosition("bottomright");
+    }
 
     if (!argSpecies) {
         argSpecies = speciesList;
@@ -1162,7 +1180,7 @@ function getSpeciesListData(argSpecies = false) {
           if (val == cgShape[taxonName]) shapIndx = key;
         }
         cmTotal[taxonName] = 0;
-        console.log(`getSpeciesListData: Add species group ${taxonName} as ${colrIndx}:${cgColor[taxonName]} ${shapIndx}:${cgShape[taxonName]}s`);
+        console.log(`getSpeciesListData: Add species group ${taxonName} as ${colrIndx}:${cgColor[taxonName]} ${shapIndx}:${cgShape[taxonName]}`);
         await fetchGbifVtOccsByTaxon(taxonName);
         i++;
     });
