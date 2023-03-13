@@ -660,13 +660,13 @@ function foreground(color) {
 }
 
 async function getCentroid(type, valu) {
-  console.log('getCentroid', type, valu);
+  //console.log('getCentroid', type, valu);
   let item = await getGeoJsonLayerFromTypeName(type, valu);
-  console.log('getCentroid RESULT', item);
+  //console.log('getCentroid RESULT', item);
   if (item.feature) {
     let polygon = turf.polygon(item.feature.geometry.coordinates);
     let centroid = turf.centroid(polygon);
-    console.log(`${type} ${valu} CENTROID:`, centroid);
+    //console.log(`${type} ${valu} CENTROID:`, centroid);
     //let centMark = L.marker([centroid.geometry.coordinates[1], centroid.geometry.coordinates[0]]).addTo(valMap);
     return L.latLng(centroid.geometry.coordinates[1], centroid.geometry.coordinates[0]);
   } else {
@@ -679,7 +679,7 @@ async function getGeoJsonLayerFromTypeName(type, name) {
     //console.log('geoGroup Layer:', layer);
     //console.log('getGeoJsonLayerFromTypeName found GeoJson layer', layer, layer.options.name,type.slice(0,5).toUpperCase(),layer.options.name.slice(0,5).toUpperCase());
     if (type.slice(0,5).toUpperCase()==layer.options.name.slice(0,5).toUpperCase()) {
-      console.log('getGeoJsonLayerFromTypeName SELECTED GeoJson layer', layer.options.name);
+      //console.log('getGeoJsonLayerFromTypeName SELECTED GeoJson layer', layer.options.name);
       //console.log(`getGeoJsonLayerFromTypeName | layer:`, layer);
       let feature = await getFeatureFromLayerByName(layer, name)
       return feature;
@@ -692,24 +692,25 @@ async function getFeatureFromLayerByName(layer, name) {
   for await (const [key, val] of Object.entries(layer._layers)) { //iterate over geoJson layer's feature layers
     //console.log(key, val);
     if (name.toUpperCase() == val.feature.properties.CNTYNAME) {
-      console.log(`getFeatureFromLayerByName found CNTYNAME`, val.feature.properties.CNTYNAME)
-      console.log(`getFeatureFromLayerByName feature`, val)
+      //console.log(`getFeatureFromLayerByName found CNTYNAME`, val.feature.properties.CNTYNAME)
+      //console.log(`getFeatureFromLayerByName feature`, val)
       return val;
     }
     if (name.toUpperCase() == val.feature.properties.TOWNNAME) {
-      console.log(`getFeatureFromLayerByName found TOWNNAME`, val.feature.properties.TOWNNAME);
-      console.log(`getFeatureFromLayerByName feature`, val);
+      //console.log(`getFeatureFromLayerByName found TOWNNAME`, val.feature.properties.TOWNNAME);
+      //console.log(`getFeatureFromLayerByName feature`, val);
       return val;
     }
     if (name.toUpperCase() == val.feature.properties.BLOCKNAME) {
-      console.log(`getFeatureFromLayerByName found BLOCKNAME`, val.feature.properties.BLOCKNAME)
-      console.log(`getFeatureFromLayerByName feature`, val)
+      //console.log(`getFeatureFromLayerByName found BLOCKNAME`, val.feature.properties.BLOCKNAME)
+      //console.log(`getFeatureFromLayerByName feature`, val)
       return val;
     }
   }
   console.log('FEATURE loop DONE.')
   return {};
 }
+
 /*
   This automatically breaks taxa into sub-taxa. To disable this feature, set the global flag
 
@@ -836,7 +837,8 @@ async function updateMap(occJsonArr, taxonName) {
       //if (document.getElementById(id) && sciName.toLowerCase().includes(taxonName.toLowerCase())) {
       if (document.getElementById(id)) {
           //console.log(`-----match----->> ${id} | ${sciName}`, cmCount[sciName], cmTotal[taxonName]);
-          document.getElementById(`groupCount-${id}`).innerHTML = `&nbsp(<u><b>${fmt.format(cmCount[sciName])}/${fmt.format(cmTotal[taxonName])}</b></u>)`;
+          //document.getElementById(`groupCount-${id}`).innerHTML = `&nbsp(<u><b>${fmt.format(cmCount[sciName])}/${fmt.format(cmTotal[taxonName])}</b></u>)`;
+          document.getElementById(`groupCount-${id}`).innerHTML = `&nbsp(<u><b>${fmt.format(cmCount[sciName])}</b></u>)`;
       }
     });
 }
@@ -1051,7 +1053,7 @@ Use "clusterMarkers":true to handle stacked and dense data.\n
 Use "iconMarkers":true to show markers with shapes other than circles.\n
 Note: taxaBreakout with clusterMarkers does not work properly.
 Color Options:
-{0:"red",1:"blue",2:"green",3:"yellow",4:"orange",5:"purple",6:"cyan",7:"grey",8:"violet"}
+{0:"red",1:"blue",2:"green",3:"yellow",4:"orange",5:"purple",6:"cyan",7:"grey",8:"violet",9:"greenyellow"}
 Shape Options:
 {0:"round",1:"square",2:"triangle",3:"diamond",4:"star"}
 `;
